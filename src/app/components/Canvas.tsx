@@ -93,6 +93,21 @@ const CW_CHANGES = [
   { file: "Design Brief — Q1 2025",     provider: "Google Docs", ago: "8 min ago",   by: "AR", status: "Needs analysis", affected: ["Decision Gateway insight","BRG-12"] },
   { file: "Component Library v4",       provider: "Figma",       ago: "2 hours ago", by: "RM", status: "Changed",        affected: ["Flow Diagram node"] },
 ];
+
+const CW_TIMELINE = [
+  { date: "Mar 8", label: "Source change detected", detail: "Design Brief changed and may affect sign-off ownership.", status: "Needs analysis", color: "#C0392B" },
+  { date: "Mar 10", label: "Research synthesis checkpoint", detail: "Resolve 3 open questions before the handoff brief is shared.", status: "Upcoming", color: "#1E488F" },
+  { date: "Mar 12", label: "Decision owner confirmation", detail: "BRG-12 is blocked until Aditi confirms final approval owner.", status: "Blocked", color: "#C0392B" },
+  { date: "Mar 15", label: "Gateway redesign milestone", detail: "Rohan delivers staged disclosure update for review.", status: "On track", color: "#00804C" },
+  { date: "Mar 20", label: "Alignment review", detail: "Compare NNG article with internal framework and add approved guidance to main context.", status: "Review", color: "#4A5200" },
+];
+
+const CW_TRACKING = [
+  { label: "Project progress", value: "42%", helper: "2 of 5 milestones completed", color: "#00804C" },
+  { label: "Blocked work", value: "2", helper: "Needs owner or source clarification", color: "#C0392B" },
+  { label: "Context coverage", value: "71%", helper: "5 of 7 Map cards have source evidence", color: "#1E488F" },
+  { label: "Review load", value: "1", helper: "Aditi has the next review handoff", color: "#4A5200" },
+];
 const MAP_TEMPLATES = ["Understanding Map","Project Timeline","Source Map","Decision Map","Work Map","Custom"];
 
 const MAP_CARDS: InsightCard[] = [
@@ -1594,7 +1609,7 @@ function ContextWorkMode() {
   };
   const priorityColor = (p: string) => p === "Critical" || p === "High" ? "#C0392B" : p === "Medium" ? "#DBE64C" : "#5C6B5A";
 
-  const tabs = ["Tasks", "Questions", "People", "Changes"];
+  const tabs = ["Tracking", "Tasks", "Questions", "Timeline", "People", "Changes"];
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
@@ -1602,7 +1617,7 @@ function ContextWorkMode() {
       <div className="flex items-start justify-between px-8 py-5 border-b border-border flex-shrink-0" style={{ background: "var(--card)" }}>
         <div>
           <p style={{ fontWeight: 700, fontSize: "1.1rem" }}>Context Work</p>
-          <p style={{ fontSize: "0.78rem", color: "var(--muted-foreground)", marginTop: 3 }}>Work linked to this Bridge's sources, questions, and decisions.</p>
+          <p style={{ fontSize: "0.78rem", color: "var(--muted-foreground)", marginTop: 3 }}>Project tracking, task ownership, timelines, questions, and file changes — all tied back to evidence.</p>
         </div>
         <button onClick={() => setCreateTask("New task")} className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-border hover:bg-secondary transition-colors" style={{ fontSize: "0.8rem", fontWeight: 600 }}>
           <Plus size={13} />New task
@@ -1633,6 +1648,36 @@ function ContextWorkMode() {
       {/* Content */}
       <div className="flex-1 overflow-y-auto px-8 py-5">
         <div className="max-w-3xl mx-auto flex flex-col gap-3">
+
+
+          {/* Tracking */}
+          {tab === "Tracking" && (
+            <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
+              {CW_TRACKING.map(item => (
+                <div key={item.label} className="rounded-2xl border border-border p-4" style={{ background: "var(--card)" }}>
+                  <p style={{ fontSize: "0.72rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--muted-foreground)", marginBottom: 8 }}>{item.label}</p>
+                  <div className="flex items-end gap-2 mb-2">
+                    <span style={{ fontSize: "1.8rem", fontWeight: 800, lineHeight: 1, color: item.color }}>{item.value}</span>
+                    <span style={{ fontSize: "0.72rem", color: "var(--muted-foreground)", marginBottom: 3 }}>{item.helper}</span>
+                  </div>
+                  <div className="h-2 rounded-full overflow-hidden" style={{ background: "var(--secondary)" }}>
+                    <div className="h-full rounded-full" style={{ width: item.value.includes("%") ? item.value : item.value === "2" ? "40%" : "20%", background: item.color }} />
+                  </div>
+                </div>
+              ))}
+              <div className="rounded-2xl border border-border p-4" style={{ background: "var(--card)", gridColumn: "1 / -1" }}>
+                <p style={{ fontSize: "0.72rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--muted-foreground)", marginBottom: 10 }}>Management focus</p>
+                <div className="grid gap-2" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))" }}>
+                  {["Unblock BRG-12 by confirming decision owner", "Analyze 2 changed sources before sharing the handoff", "Turn unresolved questions into assigned context tasks", "Move approved findings into main Bridge context"].map(focus => (
+                    <div key={focus} className="flex items-start gap-2 rounded-xl border border-border p-3" style={{ background: "var(--background)" }}>
+                      <Target size={13} style={{ color: "#001F3F", marginTop: 2, flexShrink: 0 }} />
+                      <span style={{ fontSize: "0.78rem", lineHeight: 1.45 }}>{focus}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Tasks */}
           {tab === "Tasks" && CW_TASKS.map(task => {
@@ -1710,6 +1755,30 @@ function ContextWorkMode() {
               </div>
             </div>
           ))}
+
+
+          {/* Timeline */}
+          {tab === "Timeline" && (
+            <div className="rounded-2xl border border-border p-4" style={{ background: "var(--card)" }}>
+              <p style={{ fontSize: "0.72rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--muted-foreground)", marginBottom: 16 }}>Project timeline</p>
+              <div className="relative pl-4">
+                <div className="absolute left-1.5 top-1 bottom-1 w-px" style={{ background: "var(--border)" }} />
+                {CW_TIMELINE.map(item => (
+                  <div key={item.label} className="relative pb-5 last:pb-0">
+                    <div className="absolute -left-4 top-1 w-3 h-3 rounded-full border-2" style={{ background: item.color, borderColor: "var(--card)" }} />
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p style={{ fontSize: "0.68rem", color: "var(--muted-foreground)", fontFamily: "var(--font-mono)", marginBottom: 3 }}>{item.date}</p>
+                        <p style={{ fontSize: "0.9rem", fontWeight: 650 }}>{item.label}</p>
+                        <p style={{ fontSize: "0.76rem", color: "var(--muted-foreground)", lineHeight: 1.55, marginTop: 3 }}>{item.detail}</p>
+                      </div>
+                      <span style={{ fontSize: "0.65rem", fontWeight: 700, padding: "2px 8px", borderRadius: 99, color: item.color, background: item.color + "18", whiteSpace: "nowrap" }}>{item.status}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* People */}
           {tab === "People" && CW_PEOPLE.map(person => (
