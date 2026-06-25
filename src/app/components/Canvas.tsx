@@ -814,8 +814,6 @@ function MapMode({
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       <ConnectedSourcesSection onSourceSelect={onSourceSelect} />
-      <ContextWorkStrip />
-
       <div className="flex-1 overflow-y-auto px-8 py-6">
         <div className="max-w-4xl mx-auto flex flex-col gap-8">
           <div className="flex items-center justify-between">
@@ -1595,10 +1593,9 @@ function RightPanel({
 // ─── Context Work Mode ───────────────────────────────────────────────────────
 
 function ContextWorkMode() {
-  const [tab, setTab] = useState("Tasks");
+  const [tab, setTab] = useState("Tracking");
   const [createTask, setCreateTask] = useState<string | null>(null);
   const [selectedTask, setSelectedTask] = useState<string | null>(null);
-  const [statusOpen, setStatusOpen] = useState<string | null>(null);
 
   const statusColor = (s: string) => {
     if (s === "Blocked")      return { bg: "rgba(192,57,43,0.12)",  color: "#C0392B" };
@@ -1607,172 +1604,168 @@ function ContextWorkMode() {
     if (s === "Done")         return { bg: "rgba(92,107,90,0.12)",  color: "#5C6B5A" };
     return { bg: "var(--secondary)", color: "var(--muted-foreground)" };
   };
-  const priorityColor = (p: string) => p === "Critical" || p === "High" ? "#C0392B" : p === "Medium" ? "#DBE64C" : "#5C6B5A";
+  const priorityColor = (p: string) => p === "Critical" || p === "High" ? "#C0392B" : p === "Medium" ? "#8A9300" : "#5C6B5A";
+  const taskSwimlanes = [
+    { title: "Needs decision", helper: "Blocked, unclear, or waiting on source context", tasks: CW_TASKS.filter(t => ["Blocked", "To do"].includes(t.status)) },
+    { title: "Execution & review", helper: "Active delivery and final review work", tasks: CW_TASKS.filter(t => ["In progress", "Needs review", "Done"].includes(t.status)) },
+  ];
+  const tabs = [
+    { id: "Tracking", count: "42%" },
+    { id: "Tasks", count: String(CW_TASKS.length) },
+    { id: "Questions", count: String(CW_QUESTIONS.length) },
+    { id: "Timeline", count: String(CW_TIMELINE.length) },
+    { id: "People", count: String(CW_PEOPLE.length) },
+    { id: "Changes", count: String(CW_CHANGES.length) },
+  ];
 
-  const tabs = ["Tracking", "Tasks", "Questions", "Timeline", "People", "Changes"];
+  const TaskCard = ({ task }: { task: typeof CW_TASKS[number] }) => {
+    const sc = statusColor(task.status);
+    const isSelected = selectedTask === task.key;
+    return (
+      <div className="rounded-xl border border-border overflow-hidden" style={{ background: "var(--card)" }}>
+        <button className="w-full text-left p-3" onClick={() => setSelectedTask(isSelected ? null : task.key)}>
+          <div className="flex items-start justify-between gap-2 mb-2">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span style={{ fontSize: "0.62rem", fontWeight: 800, color: "var(--muted-foreground)", fontFamily: "var(--font-mono)" }}>{task.key}</span>
+              <span style={{ fontSize: "0.62rem", fontWeight: 800, color: priorityColor(task.priority) }}>↑ {task.priority}</span>
+            </div>
+            <span style={{ fontSize: "0.62rem", fontWeight: 800, padding: "2px 7px", borderRadius: 7, background: sc.bg, color: sc.color, whiteSpace: "nowrap" }}>{task.status}</span>
+          </div>
+          <p style={{ fontSize: "0.86rem", fontWeight: 700, lineHeight: 1.35, marginBottom: 9 }}>{task.title}</p>
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="w-5 h-5 rounded-full flex items-center justify-center" style={{ background: "#001F3F", fontSize: "0.52rem", fontWeight: 800, color: "#fff" }}>{task.assignee}</div>
+            <span style={{ fontSize: "0.7rem", color: "var(--muted-foreground)" }}>Due {task.due}</span>
+            <span style={{ fontSize: "0.68rem", padding: "2px 7px", borderRadius: 7, background: "rgba(30,72,143,0.08)", color: "#1E488F", border: "1px solid rgba(30,72,143,0.18)" }}>{task.linked}</span>
+          </div>
+        </button>
+        <AnimatePresence>
+          {isSelected && (
+            <motion.div initial={{ height: 0 }} animate={{ height: "auto" }} exit={{ height: 0 }} className="overflow-hidden border-t border-border">
+              <div className="p-3 flex flex-wrap gap-1.5">
+                {["Open context","Reassign","Comment","Add to main context","Mark done"].map(a => (
+                  <button key={a} className="px-2.5 py-1 rounded-lg border border-border hover:bg-secondary transition-colors" style={{ fontSize: "0.7rem", fontWeight: 600, color: "var(--muted-foreground)" }}>{a}</button>
+                ))}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    );
+  };
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
-      {/* Header */}
-      <div className="flex items-start justify-between px-8 py-5 border-b border-border flex-shrink-0" style={{ background: "var(--card)" }}>
-        <div>
-          <p style={{ fontWeight: 700, fontSize: "1.1rem" }}>Context Work</p>
-          <p style={{ fontSize: "0.78rem", color: "var(--muted-foreground)", marginTop: 3 }}>Project tracking, task ownership, timelines, questions, and file changes — all tied back to evidence.</p>
+      <div className="px-8 pt-5 pb-3 border-b border-border flex-shrink-0" style={{ background: "var(--card)" }}>
+        <div className="flex items-end justify-between gap-4 mb-4">
+          <div>
+            <p style={{ fontWeight: 800, fontSize: "1.08rem" }}>Context Work</p>
+            <p style={{ fontSize: "0.78rem", color: "var(--muted-foreground)", marginTop: 3 }}>Track decisions, blockers, ownership, and source-linked work without leaving the Bridge.</p>
+          </div>
+          <div className="hidden md:flex items-center gap-2" style={{ fontSize: "0.72rem", color: "var(--muted-foreground)" }}>
+            <GitBranch size={13} /> All work stays tied to evidence
+          </div>
         </div>
-        <button onClick={() => setCreateTask("New task")} className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-border hover:bg-secondary transition-colors" style={{ fontSize: "0.8rem", fontWeight: 600 }}>
-          <Plus size={13} />New task
-        </button>
-      </div>
-
-      {/* Summary chips */}
-      <div className="flex items-center gap-2 px-8 py-3 border-b border-border flex-shrink-0 overflow-x-auto" style={{ background: "var(--background)", scrollbarWidth: "none" }}>
-        {CW_CHIPS.map(chip => {
-          const Icon = chip.icon;
-          return (
-            <button key={chip.label} onClick={() => setTab(chip.label.includes("Task") ? "Tasks" : chip.label.includes("Question") ? "Questions" : chip.label.includes("Change") ? "Changes" : "Tasks")} className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl border transition-colors hover:bg-secondary" style={{ fontSize: "0.78rem", fontWeight: 600, color: chip.color, background: chip.color + "0D", borderColor: chip.color + "28" }}>
-              <Icon size={13} style={{ color: chip.color }} />{chip.label}
+        <div className="flex items-center gap-1.5 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
+          {tabs.map(t => (
+            <button key={t.id} onClick={() => setTab(t.id)} className="flex items-center gap-2 px-3 py-2 rounded-xl transition-all" style={{ background: tab === t.id ? "var(--background)" : "transparent", border: tab === t.id ? "1px solid var(--border)" : "1px solid transparent", boxShadow: tab === t.id ? "0 1px 4px rgba(0,31,63,0.06)" : "none", color: tab === t.id ? "#001F3F" : "var(--muted-foreground)", fontSize: "0.8rem", fontWeight: tab === t.id ? 800 : 600 }}>
+              <span>{t.id}</span>
+              <span style={{ fontSize: "0.68rem", fontWeight: 800, padding: "1px 6px", borderRadius: 99, background: tab === t.id ? "#DBE64C" : "var(--secondary)", color: tab === t.id ? "#001F3F" : "var(--muted-foreground)" }}>{t.count}</span>
             </button>
-          );
-        })}
+          ))}
+        </div>
       </div>
 
-      {/* Tabs */}
-      <div className="flex items-center border-b border-border flex-shrink-0 px-8" style={{ background: "var(--card)" }}>
-        {tabs.map(t => (
-          <button key={t} onClick={() => setTab(t)} className="py-3 px-1 mr-5 transition-colors" style={{ fontSize: "0.82rem", fontWeight: tab === t ? 700 : 400, color: tab === t ? "var(--foreground)" : "var(--muted-foreground)", borderBottom: tab === t ? "2px solid #001F3F" : "2px solid transparent" }}>
-            {t}
-          </button>
-        ))}
-      </div>
-
-      {/* Content */}
-      <div className="flex-1 overflow-y-auto px-8 py-5">
-        <div className="max-w-3xl mx-auto flex flex-col gap-3">
-
-
-          {/* Tracking */}
+      <div className="flex-1 overflow-y-auto px-8 py-5 pb-24">
+        <div className="max-w-6xl mx-auto flex flex-col gap-4">
           {tab === "Tracking" && (
-            <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
-              {CW_TRACKING.map(item => (
-                <div key={item.label} className="rounded-2xl border border-border p-4" style={{ background: "var(--card)" }}>
-                  <p style={{ fontSize: "0.72rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--muted-foreground)", marginBottom: 8 }}>{item.label}</p>
-                  <div className="flex items-end gap-2 mb-2">
-                    <span style={{ fontSize: "1.8rem", fontWeight: 800, lineHeight: 1, color: item.color }}>{item.value}</span>
-                    <span style={{ fontSize: "0.72rem", color: "var(--muted-foreground)", marginBottom: 3 }}>{item.helper}</span>
+            <>
+              <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))" }}>
+                {CW_TRACKING.map(item => (
+                  <button key={item.label} onClick={() => setTab(item.label === "Blocked work" ? "Tasks" : item.label === "Review load" ? "People" : item.label === "Context coverage" ? "Questions" : "Timeline")} className="rounded-2xl border border-border p-4 text-left hover:-translate-y-px transition-all" style={{ background: "var(--card)", boxShadow: "0 1px 4px rgba(0,31,63,0.05)" }}>
+                    <p style={{ fontSize: "0.72rem", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--muted-foreground)", marginBottom: 10 }}>{item.label}</p>
+                    <div className="flex items-end gap-2 mb-3">
+                      <span style={{ fontSize: "1.9rem", fontWeight: 850, lineHeight: 1, color: "#001F3F" }}>{item.value}</span>
+                      <span style={{ fontSize: "0.72rem", color: "var(--muted-foreground)", marginBottom: 3 }}>{item.helper}</span>
+                    </div>
+                    <div className="h-2 rounded-full overflow-hidden" style={{ background: "var(--secondary)" }}>
+                      <div className="h-full rounded-full" style={{ width: item.value.includes("%") ? item.value : item.value === "2" ? "40%" : "20%", background: item.color }} />
+                    </div>
+                  </button>
+                ))}
+              </div>
+              <div className="grid gap-4" style={{ gridTemplateColumns: "minmax(0, 1.15fr) minmax(280px, 0.85fr)" }}>
+                <div className="rounded-2xl border border-border p-4" style={{ background: "var(--card)" }}>
+                  <div className="flex items-center justify-between mb-4">
+                    <p style={{ fontSize: "0.75rem", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--muted-foreground)" }}>Next management focus</p>
+                    <button onClick={() => setTab("Tasks")} style={{ fontSize: "0.72rem", fontWeight: 700, color: "#1E488F" }}>Open task board</button>
                   </div>
-                  <div className="h-2 rounded-full overflow-hidden" style={{ background: "var(--secondary)" }}>
-                    <div className="h-full rounded-full" style={{ width: item.value.includes("%") ? item.value : item.value === "2" ? "40%" : "20%", background: item.color }} />
+                  <div className="grid gap-2" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
+                    {["Unblock BRG-12 by confirming decision owner", "Analyze changed sources before sharing the handoff", "Turn unresolved questions into assigned context tasks", "Move approved findings into main Bridge context"].map(focus => (
+                      <div key={focus} className="flex items-start gap-2 rounded-xl border border-border p-3" style={{ background: "var(--background)" }}>
+                        <Target size={13} style={{ color: "#001F3F", marginTop: 2, flexShrink: 0 }} />
+                        <span style={{ fontSize: "0.78rem", lineHeight: 1.45 }}>{focus}</span>
+                      </div>
+                    ))}
                   </div>
                 </div>
-              ))}
-              <div className="rounded-2xl border border-border p-4" style={{ background: "var(--card)", gridColumn: "1 / -1" }}>
-                <p style={{ fontSize: "0.72rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--muted-foreground)", marginBottom: 10 }}>Management focus</p>
-                <div className="grid gap-2" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))" }}>
-                  {["Unblock BRG-12 by confirming decision owner", "Analyze 2 changed sources before sharing the handoff", "Turn unresolved questions into assigned context tasks", "Move approved findings into main Bridge context"].map(focus => (
-                    <div key={focus} className="flex items-start gap-2 rounded-xl border border-border p-3" style={{ background: "var(--background)" }}>
-                      <Target size={13} style={{ color: "#001F3F", marginTop: 2, flexShrink: 0 }} />
-                      <span style={{ fontSize: "0.78rem", lineHeight: 1.45 }}>{focus}</span>
-                    </div>
+                <div className="rounded-2xl border border-border p-4" style={{ background: "var(--card)" }}>
+                  <p style={{ fontSize: "0.75rem", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--muted-foreground)", marginBottom: 12 }}>Context graph cues</p>
+                  {["BRG-12 ↔ Open Question ↔ PDF p.14", "Design Brief change ↔ Decision Gateway", "D4 node ↔ Flow Diagram ↔ Framework v3"].map(link => (
+                    <button key={link} onClick={() => setTab("Questions")} className="w-full flex items-center gap-2 text-left rounded-xl border border-border px-3 py-2.5 mb-2 hover:bg-secondary transition-colors" style={{ background: "var(--background)", fontSize: "0.76rem" }}>
+                      <GitBranch size={13} style={{ color: "#1E488F", flexShrink: 0 }} />{link}
+                    </button>
                   ))}
                 </div>
               </div>
+            </>
+          )}
+
+          {tab === "Tasks" && (
+            <div className="flex flex-col gap-4">
+              {taskSwimlanes.map(lane => (
+                <section key={lane.title} className="rounded-2xl border border-border overflow-hidden" style={{ background: "var(--background)" }}>
+                  <div className="flex items-center justify-between px-4 py-3 border-b border-border" style={{ background: "var(--card)" }}>
+                    <div>
+                      <p style={{ fontSize: "0.86rem", fontWeight: 800 }}>{lane.title}</p>
+                      <p style={{ fontSize: "0.7rem", color: "var(--muted-foreground)", marginTop: 2 }}>{lane.helper}</p>
+                    </div>
+                    <span style={{ fontSize: "0.68rem", fontWeight: 800, padding: "2px 8px", borderRadius: 99, background: "var(--secondary)", color: "var(--muted-foreground)" }}>{lane.tasks.length} tasks</span>
+                  </div>
+                  <div className="grid gap-3 p-3" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))" }}>
+                    {lane.tasks.map(task => <TaskCard key={task.key} task={task} />)}
+                  </div>
+                </section>
+              ))}
             </div>
           )}
 
-          {/* Tasks */}
-          {tab === "Tasks" && CW_TASKS.map(task => {
-            const sc = statusColor(task.status);
-            const isSelected = selectedTask === task.key;
-            return (
-              <div key={task.key} className="rounded-2xl border border-border overflow-hidden" style={{ background: "var(--card)" }}>
-                <div className="w-full text-left p-4 cursor-pointer" onClick={() => setSelectedTask(isSelected ? null : task.key)}>
-                  <div className="flex items-start justify-between gap-2 mb-2">
-                    <div className="flex items-center gap-2">
-                      <span style={{ fontSize: "0.65rem", fontWeight: 700, color: "var(--muted-foreground)", fontFamily: "var(--font-mono)" }}>{task.key}</span>
-                      <span style={{ fontSize: "0.62rem", fontWeight: 700, color: priorityColor(task.priority) }}>↑ {task.priority}</span>
-                    </div>
-                    <div className="relative">
-                      <button onClick={e => { e.stopPropagation(); setStatusOpen(statusOpen === task.key ? null : task.key); }} className="px-2 py-0.5 rounded-md" style={{ fontSize: "0.65rem", fontWeight: 700, background: sc.bg, color: sc.color }}>
-                        {task.status}
-                      </button>
-                      <AnimatePresence>
-                        {statusOpen === task.key && (
-                          <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="absolute right-0 top-6 z-10 rounded-xl border border-border overflow-hidden" style={{ background: "var(--card)", boxShadow: "0 4px 20px rgba(0,31,63,0.12)", minWidth: 140 }}>
-                            {["To do","In progress","Waiting","Blocked","Needs review","Done"].map(s => (
-                              <button key={s} onClick={e => { e.stopPropagation(); setStatusOpen(null); }} className="w-full text-left px-4 py-2 hover:bg-secondary transition-colors" style={{ fontSize: "0.8rem" }}>{s}</button>
-                            ))}
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
-                    </div>
-                  </div>
-                  <p style={{ fontSize: "0.9rem", fontWeight: 600, lineHeight: 1.35, marginBottom: 10 }}>{task.title}</p>
-                  <div className="flex items-center gap-3 flex-wrap">
-                    <div className="flex items-center gap-1.5">
-                      <div className="w-5 h-5 rounded-full flex items-center justify-center" style={{ background: "#001F3F", fontSize: "0.52rem", fontWeight: 700, color: "#fff" }}>{task.assignee}</div>
-                      <span style={{ fontSize: "0.72rem", color: "var(--muted-foreground)" }}>Due {task.due}</span>
-                    </div>
-                    <span style={{ fontSize: "0.68rem", padding: "2px 8px", borderRadius: 6, background: "rgba(30,72,143,0.08)", color: "#1E488F", border: "1px solid rgba(30,72,143,0.18)" }}>
-                      {task.linked}
-                    </span>
-                    <span style={{ fontSize: "0.65rem", fontWeight: 600, color: "var(--muted-foreground)", background: "var(--secondary)", padding: "1px 6px", borderRadius: 4 }}>{task.visibility}</span>
-                  </div>
-                </div>
-                <AnimatePresence>
-                  {isSelected && (
-                    <motion.div initial={{ height: 0 }} animate={{ height: "auto" }} exit={{ height: 0 }} className="overflow-hidden border-t border-border">
-                      <div className="p-4 flex flex-wrap gap-2">
-                        {["Open context","Change status","Reassign","Comment","Add to main context","Mark done"].map(a => (
-                          <button key={a} className="px-3 py-1.5 rounded-lg border border-border hover:bg-secondary transition-colors" style={{ fontSize: "0.75rem", fontWeight: 500, color: "var(--muted-foreground)" }}>{a}</button>
-                        ))}
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-            );
-          })}
-
-          {/* Questions */}
           {tab === "Questions" && CW_QUESTIONS.map(q => (
             <div key={q.title} className="rounded-2xl border border-border p-4" style={{ background: "var(--card)" }}>
               <div className="flex items-center justify-between gap-2 mb-3">
-                <span style={{ fontSize: "0.65rem", fontWeight: 700, padding: "2px 8px", borderRadius: 6, background: q.status === "Open" ? "rgba(192,57,43,0.1)" : "rgba(0,128,76,0.1)", color: q.status === "Open" ? "#C0392B" : "#00804C" }}>{q.status}</span>
+                <span style={{ fontSize: "0.65rem", fontWeight: 800, padding: "2px 8px", borderRadius: 7, background: q.status === "Open" ? "rgba(192,57,43,0.1)" : "rgba(0,128,76,0.1)", color: q.status === "Open" ? "#C0392B" : "#00804C" }}>{q.status}</span>
                 <span style={{ fontSize: "0.65rem", color: "var(--muted-foreground)" }}>Confidence: {q.confidence}</span>
               </div>
-              <p style={{ fontSize: "0.9rem", fontWeight: 600, lineHeight: 1.4, marginBottom: 6 }}>{q.title}</p>
+              <p style={{ fontSize: "0.9rem", fontWeight: 700, lineHeight: 1.4, marginBottom: 6 }}>{q.title}</p>
               <p style={{ fontSize: "0.72rem", color: "var(--muted-foreground)", marginBottom: 12 }}>{q.linked}</p>
               <div className="flex items-center justify-between flex-wrap gap-2">
-                <div className="flex items-center gap-2">
-                  <div className="w-5 h-5 rounded-full flex items-center justify-center" style={{ background: "#001F3F", fontSize: "0.52rem", fontWeight: 700, color: "#fff" }}>{q.owner.slice(0,2).toUpperCase()}</div>
-                  <span style={{ fontSize: "0.75rem", color: "var(--muted-foreground)" }}>{q.owner}</span>
-                </div>
-                <div className="flex gap-1.5">
-                  {["Ask Bridge","Assign as task","Resolve"].map(a => (
-                    <button key={a} onClick={a === "Assign as task" ? () => setCreateTask(`Open Question — ${q.title.slice(0,30)}`) : undefined} className="px-3 py-1.5 rounded-lg border border-border hover:bg-secondary transition-colors" style={{ fontSize: "0.72rem", fontWeight: 500, color: "var(--muted-foreground)" }}>{a}</button>
-                  ))}
-                </div>
+                <div className="flex items-center gap-2"><div className="w-5 h-5 rounded-full flex items-center justify-center" style={{ background: "#001F3F", fontSize: "0.52rem", fontWeight: 800, color: "#fff" }}>{q.owner.slice(0,2).toUpperCase()}</div><span style={{ fontSize: "0.75rem", color: "var(--muted-foreground)" }}>{q.owner}</span></div>
+                <div className="flex gap-1.5">{["Ask Bridge","Assign as task","Resolve"].map(a => <button key={a} onClick={a === "Assign as task" ? () => setCreateTask(`Open Question — ${q.title.slice(0,30)}`) : undefined} className="px-3 py-1.5 rounded-lg border border-border hover:bg-secondary transition-colors" style={{ fontSize: "0.72rem", fontWeight: 600, color: "var(--muted-foreground)" }}>{a}</button>)}</div>
               </div>
             </div>
           ))}
 
-
-          {/* Timeline */}
           {tab === "Timeline" && (
-            <div className="rounded-2xl border border-border p-4" style={{ background: "var(--card)" }}>
-              <p style={{ fontSize: "0.72rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--muted-foreground)", marginBottom: 16 }}>Project timeline</p>
-              <div className="relative pl-4">
+            <div className="rounded-2xl border border-border p-5" style={{ background: "var(--card)" }}>
+              <div className="flex items-center justify-between mb-5"><p style={{ fontSize: "0.78rem", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--muted-foreground)" }}>Project timeline</p><span style={{ fontSize: "0.72rem", color: "var(--muted-foreground)" }}>Dates are driven by due dates, source changes, and decisions</span></div>
+              <div className="relative pl-5">
                 <div className="absolute left-1.5 top-1 bottom-1 w-px" style={{ background: "var(--border)" }} />
                 {CW_TIMELINE.map(item => (
-                  <div key={item.label} className="relative pb-5 last:pb-0">
-                    <div className="absolute -left-4 top-1 w-3 h-3 rounded-full border-2" style={{ background: item.color, borderColor: "var(--card)" }} />
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <p style={{ fontSize: "0.68rem", color: "var(--muted-foreground)", fontFamily: "var(--font-mono)", marginBottom: 3 }}>{item.date}</p>
-                        <p style={{ fontSize: "0.9rem", fontWeight: 650 }}>{item.label}</p>
-                        <p style={{ fontSize: "0.76rem", color: "var(--muted-foreground)", lineHeight: 1.55, marginTop: 3 }}>{item.detail}</p>
-                      </div>
-                      <span style={{ fontSize: "0.65rem", fontWeight: 700, padding: "2px 8px", borderRadius: 99, color: item.color, background: item.color + "18", whiteSpace: "nowrap" }}>{item.status}</span>
+                  <div key={item.label} className="relative pb-6 last:pb-0">
+                    <div className="absolute -left-5 top-1 w-3.5 h-3.5 rounded-full border-2" style={{ background: item.color, borderColor: "var(--card)" }} />
+                    <div className="grid gap-3" style={{ gridTemplateColumns: "90px minmax(0, 1fr) auto" }}>
+                      <p style={{ fontSize: "0.72rem", color: "var(--muted-foreground)", fontFamily: "var(--font-mono)" }}>{item.date}</p>
+                      <div><p style={{ fontSize: "0.92rem", fontWeight: 750 }}>{item.label}</p><p style={{ fontSize: "0.76rem", color: "var(--muted-foreground)", lineHeight: 1.55, marginTop: 3 }}>{item.detail}</p></div>
+                      <span style={{ fontSize: "0.65rem", fontWeight: 800, padding: "2px 8px", borderRadius: 99, color: item.color, background: item.color + "18", whiteSpace: "nowrap", alignSelf: "start" }}>{item.status}</span>
                     </div>
                   </div>
                 ))}
@@ -1780,59 +1773,27 @@ function ContextWorkMode() {
             </div>
           )}
 
-          {/* People */}
           {tab === "People" && CW_PEOPLE.map(person => (
             <div key={person.name} className="rounded-2xl border border-border p-4" style={{ background: "var(--card)" }}>
-              <div className="flex items-center gap-3 mb-3">
-                <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: person.color, fontSize: "0.7rem", fontWeight: 700, color: "#fff" }}>{person.initials}</div>
-                <div className="flex-1 min-w-0">
-                  <p style={{ fontSize: "0.9rem", fontWeight: 600 }}>{person.name}</p>
-                  <p style={{ fontSize: "0.72rem", color: "var(--muted-foreground)" }}>{person.role}</p>
-                </div>
-                <span style={{ fontSize: "0.65rem", fontWeight: 600, padding: "3px 9px", borderRadius: 99, background: "var(--secondary)", color: "var(--muted-foreground)", border: "1px solid var(--border)" }}>{person.access}</span>
-              </div>
-              <div className="flex flex-wrap gap-2 mb-3">
-                {person.tasks && <span style={{ fontSize: "0.68rem", fontWeight: 600, color: "#5C6B5A", background: "rgba(92,107,90,0.1)", padding: "2px 9px", borderRadius: 99 }}>{person.tasks} tasks</span>}
-                {person.review && <span style={{ fontSize: "0.68rem", fontWeight: 600, color: "#4A5200", background: "rgba(219,230,76,0.2)", padding: "2px 9px", borderRadius: 99 }}>{person.review} review</span>}
-                {person.blocked && <span style={{ fontSize: "0.68rem", fontWeight: 600, color: "#C0392B", background: "rgba(192,57,43,0.1)", padding: "2px 9px", borderRadius: 99 }}>{person.blocked} blocked</span>}
-              </div>
-              <div className="flex gap-2">
-                {["View context","Assign task","Share context"].map(a => (
-                  <button key={a} className="px-3 py-1.5 rounded-lg border border-border hover:bg-secondary transition-colors" style={{ fontSize: "0.72rem", fontWeight: 500, color: "var(--muted-foreground)" }}>{a}</button>
-                ))}
-              </div>
+              <div className="flex items-center gap-3 mb-3"><div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: person.color, fontSize: "0.7rem", fontWeight: 800, color: "#fff" }}>{person.initials}</div><div className="flex-1 min-w-0"><p style={{ fontSize: "0.9rem", fontWeight: 700 }}>{person.name}</p><p style={{ fontSize: "0.72rem", color: "var(--muted-foreground)" }}>{person.role}</p></div><span style={{ fontSize: "0.65rem", fontWeight: 700, padding: "3px 9px", borderRadius: 99, background: "var(--secondary)", color: "var(--muted-foreground)", border: "1px solid var(--border)" }}>{person.access}</span></div>
+              <div className="flex flex-wrap gap-2 mb-3">{person.tasks && <span style={{ fontSize: "0.68rem", fontWeight: 700, color: "#5C6B5A", background: "rgba(92,107,90,0.1)", padding: "2px 9px", borderRadius: 99 }}>{person.tasks} tasks</span>}{person.review && <span style={{ fontSize: "0.68rem", fontWeight: 700, color: "#4A5200", background: "rgba(219,230,76,0.2)", padding: "2px 9px", borderRadius: 99 }}>{person.review} review</span>}{person.blocked && <span style={{ fontSize: "0.68rem", fontWeight: 700, color: "#C0392B", background: "rgba(192,57,43,0.1)", padding: "2px 9px", borderRadius: 99 }}>{person.blocked} blocked</span>}</div>
+              <div className="flex gap-2">{["View context","Assign task","Share context"].map(a => <button key={a} className="px-3 py-1.5 rounded-lg border border-border hover:bg-secondary transition-colors" style={{ fontSize: "0.72rem", fontWeight: 600, color: "var(--muted-foreground)" }}>{a}</button>)}</div>
             </div>
           ))}
 
-          {/* Changes */}
           {tab === "Changes" && CW_CHANGES.map(ch => (
             <div key={ch.file} className="rounded-2xl border border-border p-4" style={{ background: "var(--card)" }}>
-              <div className="flex items-start justify-between gap-3 mb-3">
-                <div>
-                  <p style={{ fontSize: "0.9rem", fontWeight: 600, lineHeight: 1.3 }}>{ch.file}</p>
-                  <p style={{ fontSize: "0.72rem", color: "var(--muted-foreground)", marginTop: 2 }}>{ch.provider} · {ch.ago} · by {ch.by}</p>
-                </div>
-                <span style={{ fontSize: "0.65rem", fontWeight: 700, padding: "3px 9px", borderRadius: 99, background: ch.status === "Needs analysis" ? "rgba(192,57,43,0.1)" : "rgba(219,230,76,0.2)", color: ch.status === "Needs analysis" ? "#C0392B" : "#4A5200", flexShrink: 0 }}>{ch.status}</span>
-              </div>
-              <div className="flex flex-col gap-1 mb-4">
-                {ch.affected.map(a => (
-                  <div key={a} className="flex items-center gap-2">
-                    <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: "var(--muted-foreground)" }} />
-                    <span style={{ fontSize: "0.75rem", color: "var(--muted-foreground)" }}>{a}</span>
-                  </div>
-                ))}
-              </div>
-              <div className="flex gap-2 flex-wrap">
-                {["Analyze changes","Create task","View diff","Ignore"].map(a => (
-                  <button key={a} onClick={a === "Create task" ? () => setCreateTask(`Change: ${ch.file}`) : undefined} className="px-3 py-1.5 rounded-lg border border-border hover:bg-secondary transition-colors" style={{ fontSize: "0.72rem", fontWeight: a === "Analyze changes" ? 700 : 500, background: a === "Analyze changes" ? "#001F3F" : "transparent", color: a === "Analyze changes" ? "#DBE64C" : "var(--muted-foreground)", borderColor: a === "Analyze changes" ? "#001F3F" : "var(--border)" }}>{a}</button>
-                ))}
-              </div>
+              <div className="flex items-start justify-between gap-3 mb-3"><div><p style={{ fontSize: "0.9rem", fontWeight: 700, lineHeight: 1.3 }}>{ch.file}</p><p style={{ fontSize: "0.72rem", color: "var(--muted-foreground)", marginTop: 2 }}>{ch.provider} · {ch.ago} · by {ch.by}</p></div><span style={{ fontSize: "0.65rem", fontWeight: 800, padding: "3px 9px", borderRadius: 99, background: ch.status === "Needs analysis" ? "rgba(192,57,43,0.1)" : "rgba(219,230,76,0.2)", color: ch.status === "Needs analysis" ? "#C0392B" : "#4A5200", flexShrink: 0 }}>{ch.status}</span></div>
+              <div className="flex flex-col gap-1 mb-4">{ch.affected.map(a => <div key={a} className="flex items-center gap-2"><GitBranch size={11} style={{ color: "var(--muted-foreground)", flexShrink: 0 }} /><span style={{ fontSize: "0.75rem", color: "var(--muted-foreground)" }}>{a}</span></div>)}</div>
+              <div className="flex gap-2 flex-wrap">{["Analyze changes","Create task","View diff","Ignore"].map(a => <button key={a} onClick={a === "Create task" ? () => setCreateTask(`Change: ${ch.file}`) : undefined} className="px-3 py-1.5 rounded-lg border border-border hover:bg-secondary transition-colors" style={{ fontSize: "0.72rem", fontWeight: a === "Analyze changes" ? 800 : 600, background: a === "Analyze changes" ? "#001F3F" : "transparent", color: a === "Analyze changes" ? "#DBE64C" : "var(--muted-foreground)", borderColor: a === "Analyze changes" ? "#001F3F" : "var(--border)" }}>{a}</button>)}</div>
             </div>
           ))}
-
         </div>
       </div>
 
+      <div className="absolute right-8 bottom-28 z-20">
+        <button onClick={() => setCreateTask("New task")} className="flex items-center gap-2 px-4 py-2.5 rounded-2xl border border-border transition-all hover:-translate-y-px" style={{ background: "#001F3F", color: "#DBE64C", boxShadow: "0 8px 28px rgba(0,31,63,0.18)", fontSize: "0.86rem", fontWeight: 800 }}><Plus size={14} />New context task</button>
+      </div>
       <AnimatePresence>{createTask !== null && <CreateTaskModal onClose={() => setCreateTask(null)} prefill={createTask} />}</AnimatePresence>
     </div>
   );
