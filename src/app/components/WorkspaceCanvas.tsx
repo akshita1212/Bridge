@@ -100,77 +100,6 @@ function HoverActions({ actions, onAction }: { actions: string[]; onAction?: (a:
   );
 }
 
-// ─── Source Nav Shelf ─────────────────────────────────────────────────────────
-
-const FILTERS = ["All", "Docs", "Media", "Notes", "Outputs", "Questions"];
-
-const SHELF_SOURCES = [
-  { id: "pdf",   label: "Assessment Framework v3", type: "Docs",   color: "#1E488F", icon: FileText   },
-  { id: "video", label: "UX Research Session",     type: "Media",  color: "#00804C", icon: Video      },
-  { id: "audio", label: "Stakeholder Interview",   type: "Media",  color: "#74C365", icon: AudioLines },
-  { id: "image", label: "Flow Diagram — Final",    type: "Docs",   color: "#4A5200", icon: Image      },
-  { id: "link",  label: "NNG — Cognitive Load",    type: "Docs",   color: "#5C6B5A", icon: Globe      },
-];
-
-function SourceNavShelf({
-  activeFilter,
-  onFilterChange,
-  onSourceClick,
-}: {
-  activeFilter: string;
-  onFilterChange: (f: string) => void;
-  onSourceClick: (id: string) => void;
-}) {
-  const visible = SHELF_SOURCES.filter(s => activeFilter === "All" || s.type === activeFilter);
-  return (
-    <div
-      className="flex-shrink-0 border-b border-border px-4 py-2 flex items-center gap-3"
-      style={{ background: "var(--card)" }}
-    >
-      {/* Filter tabs */}
-      <div className="flex items-center gap-0.5 flex-shrink-0">
-        {FILTERS.map(f => (
-          <button
-            key={f}
-            onClick={() => onFilterChange(f)}
-            className="px-2.5 py-1 rounded-lg transition-colors"
-            style={{
-              fontSize: "0.72rem",
-              fontWeight: activeFilter === f ? 700 : 400,
-              background: activeFilter === f ? "var(--secondary)" : "transparent",
-              color: activeFilter === f ? "var(--foreground)" : "var(--muted-foreground)",
-            }}
-          >
-            {f}
-          </button>
-        ))}
-      </div>
-      <div className="w-px h-4 bg-border flex-shrink-0" />
-      {/* Source chips */}
-      <div className="flex items-center gap-1.5 overflow-x-auto flex-1" style={{ scrollbarWidth: "none" }}>
-        {visible.map(src => {
-          const Icon = src.icon;
-          return (
-            <button
-              key={src.id}
-              onClick={() => onSourceClick(src.id)}
-              className="flex-shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-border hover:bg-secondary transition-all"
-              style={{ background: "var(--background)" }}
-            >
-              <div className="w-4 h-4 rounded-md flex items-center justify-center flex-shrink-0" style={{ background: src.color + "18" }}>
-                <Icon size={10} style={{ color: src.color }} />
-              </div>
-              <span style={{ fontSize: "0.72rem", fontWeight: 500, color: "var(--foreground)", whiteSpace: "nowrap" }}>
-                {src.label.length > 22 ? src.label.slice(0, 21) + "…" : src.label}
-              </span>
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
 // ─── Node Cards ───────────────────────────────────────────────────────────────
 
 interface NodeShellProps {
@@ -1297,7 +1226,6 @@ export function WorkspaceCanvas({ onAnnotate }: WorkspaceCanvasProps) {
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [studioOpen, setStudioOpen] = useState(false);
   const [panelState, setPanelState] = useState<RightPanelState>("default");
-  const [activeFilter, setActiveFilter] = useState("All");
   const [zoom, setZoom] = useState(100);
   const [ctxMenu, setCtxMenu] = useState<{ kind: "source"|"postit"|"output"; x: number; y: number } | null>(null);
   const dragRef = useRef<{ id: string; startMX: number; startMY: number; startX: number; startY: number } | null>(null);
@@ -1343,18 +1271,8 @@ export function WorkspaceCanvas({ onAnnotate }: WorkspaceCanvasProps) {
     setStudioOpen(false);
   };
 
-  const handleSourceNavClick = (id: string) => {
-    select(id);
-  };
-
   return (
     <div className="flex-1 flex flex-col overflow-hidden" style={{ position: "relative" }}>
-      <SourceNavShelf
-        activeFilter={activeFilter}
-        onFilterChange={setActiveFilter}
-        onSourceClick={handleSourceNavClick}
-      />
-
       <div className="flex-1 overflow-hidden relative">
         {/* Scrollable canvas */}
         <div

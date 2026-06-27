@@ -2325,10 +2325,16 @@ export function Canvas({ theme, onToggleTheme, onNavigate, canvasId }: Props) {
                 <MapMode onCardSelect={handleCardSelect} onSourceSelect={handleSourceSelect} />
               )}
               {mode === "workspace" && (
-                <WorkspaceCanvas onAnnotate={handleAnnotate} />
+                <div className="flex-1 flex flex-col overflow-hidden">
+                  <ConnectedSourcesSection onSourceSelect={handleSourceSelect} />
+                  <WorkspaceCanvas onAnnotate={handleAnnotate} />
+                </div>
               )}
               {mode === "work" && (
-                <ContextWorkMode />
+                <div className="flex-1 flex flex-col overflow-hidden">
+                  <ConnectedSourcesSection onSourceSelect={handleSourceSelect} />
+                  <ContextWorkMode />
+                </div>
               )}
             </>
           )}
