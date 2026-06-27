@@ -1655,16 +1655,7 @@ function ContextWorkMode() {
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
-      <div className="px-8 pt-5 pb-3 border-b border-border flex-shrink-0" style={{ background: "var(--card)" }}>
-        <div className="flex items-end justify-between gap-4 mb-4">
-          <div>
-            <p style={{ fontWeight: 800, fontSize: "1.08rem" }}>Context Work</p>
-            <p style={{ fontSize: "0.78rem", color: "var(--muted-foreground)", marginTop: 3 }}>Track decisions, blockers, ownership, and source-linked work without leaving the Bridge.</p>
-          </div>
-          <div className="hidden md:flex items-center gap-2" style={{ fontSize: "0.72rem", color: "var(--muted-foreground)" }}>
-            <GitBranch size={13} /> All work stays tied to evidence
-          </div>
-        </div>
+      <div className="px-8 py-3 border-b border-border flex-shrink-0" style={{ background: "var(--card)" }}>
         <div className="flex items-center gap-1.5 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
           {tabs.map(t => (
             <button key={t.id} onClick={() => setTab(t.id)} className="flex items-center gap-2 px-3 py-2 rounded-xl transition-all" style={{ background: tab === t.id ? "var(--background)" : "transparent", border: tab === t.id ? "1px solid var(--border)" : "1px solid transparent", boxShadow: tab === t.id ? "0 1px 4px rgba(0,31,63,0.06)" : "none", color: tab === t.id ? "#001F3F" : "var(--muted-foreground)", fontSize: "0.8rem", fontWeight: tab === t.id ? 800 : 600 }}>
