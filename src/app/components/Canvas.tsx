@@ -432,13 +432,13 @@ function ConnectedSourcesSection({ onSourceSelect }: { onSourceSelect: (id: stri
 
   return (
     <div className="flex-shrink-0 border-b border-border" style={{ background: "var(--card)" }}>
-      <div className="flex items-center justify-between px-8 pt-4 pb-2">
+      <div className="flex items-center justify-between px-8 pt-2 pb-1">
         <p style={{ fontSize: "0.7rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--muted-foreground)" }}>Connected Sources</p>
         <button onClick={() => setShowConnect(true)} className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-border hover:bg-secondary transition-colors" style={{ fontSize: "0.72rem", fontWeight: 500, color: "var(--muted-foreground)" }}>
           <Plus size={11} />Connect source
         </button>
       </div>
-      <div className="flex gap-2 overflow-x-auto px-8 pb-4" style={{ scrollbarWidth: "none" }}>
+      <div className="flex gap-3 overflow-x-auto px-8 pb-2" style={{ scrollbarWidth: "thin", scrollSnapType: "x proximity" }}>
         {CONNECTED_SOURCES.map(src => {
           const Icon = providerIcon(src.provider);
           return (
@@ -446,8 +446,8 @@ function ConnectedSourcesSection({ onSourceSelect }: { onSourceSelect: (id: stri
               key={src.id}
               onClick={() => onSourceSelect(src.id)}
               onContextMenu={e => { e.preventDefault(); setCtxMenu({ id: src.id, x: e.clientX, y: e.clientY }); }}
-              className="flex-shrink-0 flex flex-col gap-2 px-3 py-2.5 rounded-xl border border-border hover:bg-secondary hover:-translate-y-px transition-all cursor-pointer"
-              style={{ background: "var(--background)", minWidth: 178 }}
+              className="flex-shrink-0 flex flex-col gap-1.5 px-3 py-2 rounded-xl border border-border hover:bg-secondary hover:-translate-y-px transition-all cursor-pointer"
+              style={{ background: "var(--background)", width: 250, minHeight: 72, scrollSnapAlign: "start" }}
             >
               <div className="flex items-start justify-between gap-1.5">
                 <div className="flex items-center gap-2 min-w-0">
@@ -455,8 +455,8 @@ function ConnectedSourcesSection({ onSourceSelect }: { onSourceSelect: (id: stri
                     <Icon size={11} style={{ color: src.color }} />
                   </div>
                   <div className="min-w-0">
-                    <p className="truncate" style={{ fontSize: "0.73rem", fontWeight: 600, lineHeight: 1.25, maxWidth: 100 }}>
-                      {src.title.length > 20 ? src.title.slice(0, 19) + "…" : src.title}
+                    <p className="truncate" style={{ fontSize: "0.73rem", fontWeight: 600, lineHeight: 1.2, maxWidth: 150 }}>
+                      {src.title.length > 28 ? src.title.slice(0, 27) + "…" : src.title}
                     </p>
                     <p style={{ fontSize: "0.6rem", color: "var(--muted-foreground)" }}>{src.provider}</p>
                   </div>
@@ -468,7 +468,7 @@ function ConnectedSourcesSection({ onSourceSelect }: { onSourceSelect: (id: stri
                 <span style={{ fontSize: "0.58rem", color: "var(--muted-foreground)" }}>{src.lastUpdated}</span>
               </div>
               {src.status === "changed" && analyzing !== src.id && (
-                <button onClick={e => { e.stopPropagation(); setAnalyzing(src.id); setTimeout(() => setAnalyzing(null), 2400); }} className="w-full px-2 py-1 rounded-lg hover:opacity-90 transition-all" style={{ fontSize: "0.65rem", fontWeight: 700, background: "#001F3F", color: "#DBE64C", textAlign: "center" }}>
+                <button onClick={e => { e.stopPropagation(); setAnalyzing(src.id); setTimeout(() => setAnalyzing(null), 2400); }} className="w-full px-2 py-0.5 rounded-lg hover:opacity-90 transition-all" style={{ fontSize: "0.62rem", fontWeight: 700, background: "#001F3F", color: "#DBE64C", textAlign: "center" }}>
                   Analyze changes
                 </button>
               )}
