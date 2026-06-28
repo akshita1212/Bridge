@@ -565,9 +565,21 @@ function LeftConnectedSourcesPanel({
         )}
       </AnimatePresence>
       {!open && (
-        <button onClick={onToggle} className="absolute left-3 top-20 z-30 flex items-center gap-1.5 px-3 py-2 rounded-xl border border-border hover:bg-secondary transition-all" style={{ background: "var(--card)", boxShadow: "0 4px 18px rgba(0,31,63,0.10)", fontSize: "0.75rem", fontWeight: 800 }}>
-          <ChevronRight size={13} />Sources
-        </button>
+        <aside className="w-12 border-r border-border flex-shrink-0 flex flex-col items-center py-3 gap-3" style={{ background: "var(--card)" }}>
+          <button onClick={onToggle} className="w-8 h-8 rounded-xl border border-border flex items-center justify-center hover:bg-secondary transition-all" style={{ background: "var(--background)", color: "var(--muted-foreground)" }} aria-label="Open connected sources">
+            <ChevronRight size={14} />
+          </button>
+          <div className="w-6 h-px bg-border" />
+          {CONNECTED_SOURCES.slice(0, 5).map(src => {
+            const Icon = providerIcon(src.provider);
+            return (
+              <button key={src.id} onClick={() => onSourceSelect(src.id)} className="w-8 h-8 rounded-xl border border-border flex items-center justify-center hover:bg-secondary transition-colors relative" style={{ background: src.status === "changed" ? "rgba(192,57,43,0.08)" : "var(--background)" }} title={src.title}>
+                <Icon size={13} style={{ color: src.color }} />
+                {src.status === "changed" && <span className="absolute -right-0.5 -top-0.5 w-2 h-2 rounded-full" style={{ background: "#C0392B" }} />}
+              </button>
+            );
+          })}
+        </aside>
       )}
       <AnimatePresence>{showConnect && <ConnectSourceModal onClose={() => setShowConnect(false)} />}</AnimatePresence>
     </>
@@ -1524,16 +1536,16 @@ function RightPanel({
 
   return (
     <motion.aside
-      initial={{ x: 300, opacity: 0 }}
+      initial={{ x: 420, opacity: 0 }}
       animate={{ x: 0, opacity: 1 }}
-      exit={{ x: 300, opacity: 0 }}
+      exit={{ x: 420, opacity: 0 }}
       transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-      className="w-72 flex-shrink-0 border-l border-border flex flex-col"
-      style={{ background: "var(--card)" }}
+      className="w-[420px] flex-shrink-0 border-l border-border flex flex-col"
+      style={{ background: "var(--card)", boxShadow: "-16px 0 48px rgba(0,31,63,0.08)" }}
     >
       <div className="flex items-center justify-between px-4 py-3.5 border-b border-border">
         <p style={{ fontWeight: 600, fontSize: "0.875rem" }}>
-          {card ? "Insight evidence" : "Source detail"}
+          {card ? "Insight evidence" : "Source preview"}
         </p>
         <button onClick={onClose} className="hover:bg-secondary rounded-lg p-1 transition-colors" style={{ color: "var(--muted-foreground)" }}>
           <X size={14} />
@@ -1582,6 +1594,28 @@ function RightPanel({
               Stakeholder Interview · Timestamp 08:42
             </p>
           )}
+        </div>
+
+        {/* Original document preview */}
+        <div className="rounded-2xl border border-border overflow-hidden" style={{ background: "var(--background)" }}>
+          <div className="flex items-center justify-between px-3 py-2 border-b border-border" style={{ background: "var(--card)" }}>
+            <div>
+              <p style={{ fontSize: "0.72rem", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--muted-foreground)" }}>Original document</p>
+              <p style={{ fontSize: "0.68rem", color: "var(--muted-foreground)", marginTop: 1 }}>{source ? source.title : card?.sources[0] ? (SOURCES.find(s => s.id === card.sources[0])?.title || "Linked source") : "Inferred context"}</p>
+            </div>
+            <span style={{ fontSize: "0.64rem", fontWeight: 700, color: "#1E488F", background: "rgba(30,72,143,0.08)", borderRadius: 99, padding: "2px 7px" }}>Scrollable</span>
+          </div>
+          <div className="max-h-72 overflow-y-auto p-4" style={{ scrollbarWidth: "thin" }}>
+            <div className="mx-auto rounded-xl border border-border p-5" style={{ background: "var(--card)", minHeight: 360, boxShadow: "0 2px 10px rgba(0,31,63,0.04)" }}>
+              <p style={{ fontSize: "0.68rem", fontFamily: "var(--font-mono)", color: "var(--muted-foreground)", marginBottom: 12 }}>{source?.type === "video" ? "Transcript · 08:42" : source?.type === "audio" ? "Transcript · 08:42" : "Page 14"}</p>
+              <h4 style={{ fontSize: "1rem", fontWeight: 800, marginBottom: 10, lineHeight: 1.3 }}>Decision gateway context</h4>
+              <p style={{ fontSize: "0.82rem", lineHeight: 1.75, color: "var(--foreground)" }}>The decision gateway is where users must compare multiple criteria at once. Bridge keeps the source readable here so evidence, highlights, notes, and tasks stay tied to the original material instead of opening a disconnected popup.</p>
+              <div className="my-4 rounded-xl p-3" style={{ background: "rgba(219,230,76,0.22)", border: "1px solid rgba(219,230,76,0.5)" }}>
+                <p style={{ fontSize: "0.8rem", lineHeight: 1.65, fontWeight: 600 }}>Highlighted evidence: simultaneous criteria create the highest cognitive load and should be replaced with staged disclosure.</p>
+              </div>
+              {["Source-backed notes remain private until shared.", "Changed connected files can be analyzed before updating the Map.", "Tasks and questions created here inherit this source link."].map(line => <p key={line} style={{ fontSize: "0.8rem", lineHeight: 1.7, color: "var(--muted-foreground)", marginTop: 10 }}>{line}</p>)}
+            </div>
+          </div>
         </div>
 
         {/* Confidence */}
@@ -1872,13 +1906,25 @@ const MODE_ITEMS = [
   { id: "hub"      as WorkspaceMode, icon: Target,  label: "Action Hub" },
 ];
 
-const INPUT_ACTIONS = [
-  { id: "upload", icon: Upload, label: "Upload" },
-  { id: "link", icon: Link2, label: "Paste link" },
-  { id: "note", icon: StickyNote, label: "Post-it" },
-  { id: "record", icon: Mic, label: "Record" },
-  { id: "more", icon: Plus, label: "More" },
-];
+const INPUT_ACTIONS: Record<WorkspaceMode, { id: string; icon: React.ElementType; label: string }[]> = {
+  understanding: [
+    { id: "upload", icon: Upload, label: "Add source" },
+    { id: "link", icon: Link2, label: "Connect link" },
+    { id: "more", icon: Zap, label: "Analyze" },
+  ],
+  canvas: [
+    { id: "upload", icon: Upload, label: "Upload" },
+    { id: "link", icon: Link2, label: "Paste link" },
+    { id: "note", icon: StickyNote, label: "Post-it" },
+    { id: "record", icon: Mic, label: "Record" },
+    { id: "more", icon: Plus, label: "Create" },
+  ],
+  hub: [
+    { id: "more", icon: Plus, label: "Add task" },
+    { id: "record", icon: Mic, label: "Ask owner" },
+    { id: "link", icon: Link2, label: "Link context" },
+  ],
+};
 
 function BottomCommandBar({
   mode,
@@ -1920,8 +1966,8 @@ function BottomCommandBar({
 
       <div className="w-px h-5 bg-border mx-0.5" />
 
-      {/* Input actions */}
-      {INPUT_ACTIONS.map((action) => (
+      {/* Contextual actions */}
+      {INPUT_ACTIONS[mode].map((action) => (
         <button
           key={action.id}
           onClick={() => onAction(action.id)}
