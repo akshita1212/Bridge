@@ -565,9 +565,21 @@ function LeftConnectedSourcesPanel({
         )}
       </AnimatePresence>
       {!open && (
-        <button onClick={onToggle} className="absolute left-3 top-20 z-30 flex items-center gap-1.5 px-3 py-2 rounded-xl border border-border hover:bg-secondary transition-all" style={{ background: "var(--card)", boxShadow: "0 4px 18px rgba(0,31,63,0.10)", fontSize: "0.75rem", fontWeight: 800 }}>
-          <ChevronRight size={13} />Sources
-        </button>
+        <aside
+          className="w-14 border-r border-border flex-shrink-0 flex flex-col items-center pt-4"
+          style={{ background: "var(--sidebar)" }}
+          aria-label="Collapsed connected sources rail"
+        >
+          <button
+            onClick={onToggle}
+            className="flex flex-col items-center gap-2 px-2 py-3 rounded-2xl border border-border hover:bg-secondary transition-all"
+            style={{ background: "var(--card)", boxShadow: "0 4px 18px rgba(0,31,63,0.08)", fontSize: "0.68rem", fontWeight: 800 }}
+            aria-label="Open connected sources"
+          >
+            <ChevronRight size={14} />
+            <span style={{ writingMode: "vertical-rl", textOrientation: "mixed" }}>Sources</span>
+          </button>
+        </aside>
       )}
       <AnimatePresence>{showConnect && <ConnectSourceModal onClose={() => setShowConnect(false)} />}</AnimatePresence>
     </>
@@ -1511,14 +1523,26 @@ function RightPanel({
   sourceId,
   onClose,
   onSourceSelect,
+  onAction,
 }: {
   cardId: string | null;
   sourceId: string | null;
   onClose: () => void;
   onSourceSelect: (id: string) => void;
+  onAction: (label: string) => void;
 }) {
   const card = MAP_CARDS.find((c) => c.id === cardId);
-  const source = SOURCES.find((s) => s.id === sourceId);
+  const connectedSource = CONNECTED_SOURCES.find((s) => s.id === sourceId);
+  const source = SOURCES.find((s) => s.id === sourceId) || (connectedSource
+    ? {
+        id: connectedSource.id,
+        type: (connectedSource.provider.includes("Sheet") ? "link" : connectedSource.provider === "Figma" ? "image" : "pdf") as Source["type"],
+        title: connectedSource.title,
+        meta: `${connectedSource.provider} · ${connectedSource.lastUpdated}`,
+        status: connectedSource.status === "changed" || connectedSource.status === "needs-analysis" ? "updating" : "ready",
+        color: connectedSource.color,
+      }
+    : undefined);
   const active = card || source;
   if (!active) return null;
 
@@ -1528,12 +1552,12 @@ function RightPanel({
       animate={{ x: 0, opacity: 1 }}
       exit={{ x: 300, opacity: 0 }}
       transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-      className="w-72 flex-shrink-0 border-l border-border flex flex-col"
+      className="w-96 flex-shrink-0 border-l border-border flex flex-col"
       style={{ background: "var(--card)" }}
     >
       <div className="flex items-center justify-between px-4 py-3.5 border-b border-border">
         <p style={{ fontWeight: 600, fontSize: "0.875rem" }}>
-          {card ? "Insight evidence" : "Source detail"}
+          {card ? "Insight evidence" : "Source document"}
         </p>
         <button onClick={onClose} className="hover:bg-secondary rounded-lg p-1 transition-colors" style={{ color: "var(--muted-foreground)" }}>
           <X size={14} />
@@ -1583,6 +1607,52 @@ function RightPanel({
             </p>
           )}
         </div>
+
+        {source && (
+          <div>
+            <p style={{ fontSize: "0.72rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--muted-foreground)", marginBottom: 8 }}>
+              Original document preview
+            </p>
+            <div className="rounded-2xl border border-border overflow-hidden" style={{ background: "var(--background)" }}>
+              <div className="flex items-center justify-between px-3 py-2 border-b border-border" style={{ background: "var(--secondary)" }}>
+                <span style={{ fontSize: "0.72rem", fontWeight: 800 }}>{source.title}</span>
+                <span style={{ fontSize: "0.65rem", color: "var(--muted-foreground)", fontFamily: "var(--font-mono)" }}>{source.meta}</span>
+              </div>
+              <div className="max-h-96 overflow-y-auto p-4 flex flex-col gap-3">
+                {["Executive summary", "Evidence excerpt", "Highlighted page", "Change notes"].map((section, index) => (
+                  <div key={section} className="rounded-xl border border-border p-3" style={{ background: "var(--card)" }}>
+                    <p style={{ fontSize: "0.72rem", fontWeight: 800, color: source.color, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 8 }}>
+                      {section}
+                    </p>
+                    <div className="flex flex-col gap-1.5">
+                      {[92, 74, 86, 64].map((width, line) => (
+                        <div
+                          key={line}
+                          style={{
+                            width: `${width - index * 4}%`,
+                            height: 7,
+                            borderRadius: 99,
+                            background: line === 1 ? "#DBE64C" : "var(--muted-foreground)",
+                            opacity: line === 1 ? 0.55 : 0.18,
+                          }}
+                        />
+                      ))}
+                    </div>
+                    <p style={{ fontSize: "0.76rem", lineHeight: 1.6, color: "var(--muted-foreground)", marginTop: 10 }}>
+                      {index === 0
+                        ? "Scrollable in-Bridge source preview keeps evidence in the same right-side drawer instead of opening a separate popup."
+                        : index === 1
+                        ? "Users can review the original context, then highlight, ask Bridge, or create linked work without losing their place."
+                        : index === 2
+                        ? "Citations, timestamps, and page markers stay attached to the active insight or canvas node."
+                        : "Changed connected files can be analyzed from here before anything is added to the main Bridge context."}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Confidence */}
         {card && (
@@ -1651,6 +1721,14 @@ function RightPanel({
           ].map((action) => (
             <button
               key={action.label}
+              onClick={() => {
+                if (action.label === "Open source") {
+                  const firstSource = card?.sources[0] || source?.id;
+                  if (firstSource) onSourceSelect(firstSource);
+                  return;
+                }
+                onAction(`${action.label} linked to ${card ? "insight" : "source"}`);
+              }}
               className="flex items-center gap-2 w-full px-3 py-2 rounded-xl border border-border hover:bg-secondary transition-colors"
               style={{ fontSize: "0.825rem", fontWeight: 500 }}
             >
@@ -1880,6 +1958,20 @@ const INPUT_ACTIONS = [
   { id: "more", icon: Plus, label: "More" },
 ];
 
+const MODE_ACTIONS: Record<WorkspaceMode, typeof INPUT_ACTIONS> = {
+  understanding: [
+    { id: "upload", icon: Upload, label: "Add source" },
+    { id: "link", icon: Link2, label: "Connect link" },
+    { id: "more", icon: Plus, label: "Analyze gaps" },
+  ],
+  canvas: INPUT_ACTIONS,
+  hub: [
+    { id: "more", icon: Plus, label: "New task" },
+    { id: "record", icon: Mic, label: "Ask owner" },
+    { id: "link", icon: GitBranch, label: "Link context" },
+  ],
+};
+
 function BottomCommandBar({
   mode,
   onModeChange,
@@ -1921,7 +2013,7 @@ function BottomCommandBar({
       <div className="w-px h-5 bg-border mx-0.5" />
 
       {/* Input actions */}
-      {INPUT_ACTIONS.map((action) => (
+      {MODE_ACTIONS[mode].map((action) => (
         <button
           key={action.id}
           onClick={() => onAction(action.id)}
@@ -2403,6 +2495,7 @@ export function Canvas({ theme, onToggleTheme, onNavigate, canvasId }: Props) {
               sourceId={selectedSourceId}
               onClose={handlePanelClose}
               onSourceSelect={handleSourceSelect}
+              onAction={addToast}
             />
           )}
         </AnimatePresence>
