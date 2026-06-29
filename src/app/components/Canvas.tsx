@@ -451,9 +451,19 @@ function ConnectSourceModal({ onClose }: { onClose: () => void }) {
   );
 }
 
-// ─── Connected Sources Section ────────────────────────────────────────────────
+// ─── Content Sources Panel ────────────────────────────────────────────────────
 
-function ConnectedSourcesSection({ onSourceSelect }: { onSourceSelect: (id: string) => void }) {
+function ContentSourcesPanel({
+  open,
+  onToggle,
+  onSourceSelect,
+  isEmpty,
+}: {
+  open: boolean;
+  onToggle: () => void;
+  onSourceSelect: (id: string) => void;
+  isEmpty: boolean;
+}) {
   const [ctxMenu, setCtxMenu] = useState<{ id: string; x: number; y: number } | null>(null);
   const [analyzing, setAnalyzing] = useState<string | null>(null);
   const [showConnect, setShowConnect] = useState(false);
@@ -478,54 +488,103 @@ function ConnectedSourcesSection({ onSourceSelect }: { onSourceSelect: (id: stri
     p === "Google Sheets" || p === "Google Drive" ? Globe : p === "Figma" ? Image : FileText;
 
   return (
-    <div className="flex-shrink-0 border-b border-border" style={{ background: "var(--sidebar)" }}>
-      <div className="flex items-center justify-between px-8 pt-3 pb-1.5">
-        <div>
-          <p style={{ fontSize: "0.7rem", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--muted-foreground)" }}>Content Sources</p>
-          <p style={{ fontSize: "0.68rem", color: "var(--muted-foreground)", marginTop: 1 }}>Original files, live docs, and source-only references.</p>
-        </div>
-        <button onClick={() => setShowConnect(true)} className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-border hover:bg-secondary transition-colors" style={{ fontSize: "0.72rem", fontWeight: 500, color: "var(--muted-foreground)" }}>
-          <Plus size={11} />Connect source
-        </button>
-      </div>
-      <div className="flex gap-3 overflow-x-auto px-8 pb-2" style={{ scrollbarWidth: "thin", scrollSnapType: "x proximity" }}>
-        {CONNECTED_SOURCES.map(src => {
-          const Icon = providerIcon(src.provider);
-          return (
-            <div
-              key={src.id}
-              onClick={() => onSourceSelect(src.id)}
-              onContextMenu={e => { e.preventDefault(); setCtxMenu({ id: src.id, x: e.clientX, y: e.clientY }); }}
-              className="flex-shrink-0 flex flex-col gap-1.5 px-3 py-2 rounded-xl border border-border hover:bg-secondary hover:-translate-y-px transition-all cursor-pointer"
-              style={{ background: "var(--card)", width: 250, minHeight: 74, scrollSnapAlign: "start", boxShadow: "0 1px 5px rgba(0,31,63,0.04)" }}
-            >
-              <div className="flex items-start justify-between gap-1.5">
-                <div className="flex items-center gap-2 min-w-0">
-                  <div className="w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: src.color + "18" }}>
-                    <Icon size={11} style={{ color: src.color }} />
+    <>
+      <AnimatePresence initial={false}>
+        {open ? (
+          <motion.aside
+            key="content-sources-panel"
+            initial={{ width: 0, opacity: 0 }}
+            animate={{ width: 320, opacity: 1 }}
+            exit={{ width: 0, opacity: 0 }}
+            transition={{ duration: 0.24, ease: [0.16, 1, 0.3, 1] }}
+            className="border-r border-border flex flex-col flex-shrink-0 overflow-hidden"
+            style={{ background: "var(--sidebar)", boxShadow: "4px 0 18px rgba(0,31,63,0.04)" }}
+          >
+            <div className="flex items-start justify-between gap-3 px-4 py-4 border-b border-sidebar-border flex-shrink-0">
+              <div className="min-w-0">
+                <p style={{ fontSize: "0.7rem", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--muted-foreground)" }}>Content Sources</p>
+                <p style={{ fontSize: "0.68rem", color: "var(--muted-foreground)", marginTop: 2, lineHeight: 1.45 }}>Original files, live docs, and source-only references.</p>
+              </div>
+              <button onClick={onToggle} className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-secondary transition-colors flex-shrink-0" style={{ color: "var(--muted-foreground)" }}>
+                <ChevronLeft size={14} />
+              </button>
+            </div>
+
+            <div className="px-3 py-3 border-b border-sidebar-border flex-shrink-0">
+              <button onClick={() => setShowConnect(true)} className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border border-border hover:bg-secondary transition-colors" style={{ fontSize: "0.78rem", fontWeight: 700, color: "var(--foreground)", background: "var(--card)" }}>
+                <Plus size={12} />Connect source
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto px-3 py-3">
+              {isEmpty ? (
+                <div className="h-full flex flex-col items-center justify-center text-center px-5">
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-3" style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
+                    <Upload size={16} style={{ color: "var(--muted-foreground)" }} />
                   </div>
-                  <div className="min-w-0">
-                    <p className="truncate" style={{ fontSize: "0.73rem", fontWeight: 600, lineHeight: 1.2, maxWidth: 150 }}>
-                      {src.title.length > 28 ? src.title.slice(0, 27) + "…" : src.title}
-                    </p>
-                    <p style={{ fontSize: "0.6rem", color: "var(--muted-foreground)" }}>{src.provider}</p>
-                  </div>
+                  <p style={{ fontSize: "0.82rem", fontWeight: 750, marginBottom: 4 }}>No sources yet</p>
+                  <p style={{ fontSize: "0.74rem", color: "var(--muted-foreground)", lineHeight: 1.5 }}>Use the bottom actions to add files, links, notes, audio, or video.</p>
                 </div>
-                <div className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: "#001F3F", fontSize: "0.52rem", fontWeight: 700, color: "#fff" }}>{src.owner}</div>
-              </div>
-              <div className="flex items-center justify-between gap-1">
-                <StatusChip status={src.status} id={src.id} />
-                <span style={{ fontSize: "0.58rem", color: "var(--muted-foreground)" }}>{src.lastUpdated}</span>
-              </div>
-              {src.status === "changed" && analyzing !== src.id && (
-                <button onClick={e => { e.stopPropagation(); setAnalyzing(src.id); setTimeout(() => setAnalyzing(null), 2400); }} className="w-full px-2 py-0.5 rounded-lg hover:opacity-90 transition-all" style={{ fontSize: "0.62rem", fontWeight: 700, background: "#001F3F", color: "#DBE64C", textAlign: "center" }}>
-                  Analyze changes
-                </button>
+              ) : (
+                <div className="flex flex-col gap-2.5">
+                  {CONNECTED_SOURCES.map(src => {
+                    const Icon = providerIcon(src.provider);
+                    return (
+                      <div
+                        key={src.id}
+                        onClick={() => onSourceSelect(src.id)}
+                        onContextMenu={e => { e.preventDefault(); setCtxMenu({ id: src.id, x: e.clientX, y: e.clientY }); }}
+                        className="flex flex-col gap-2 px-3 py-3 rounded-xl border border-border hover:bg-secondary hover:-translate-y-px transition-all cursor-pointer"
+                        style={{ background: "var(--card)", boxShadow: "0 1px 5px rgba(0,31,63,0.04)" }}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: src.color + "18" }}>
+                              <Icon size={12} style={{ color: src.color }} />
+                            </div>
+                            <div className="min-w-0">
+                              <p className="truncate" style={{ fontSize: "0.78rem", fontWeight: 750, lineHeight: 1.22 }}>
+                                {src.title}
+                              </p>
+                              <p style={{ fontSize: "0.64rem", color: "var(--muted-foreground)", marginTop: 2 }}>{src.provider}</p>
+                            </div>
+                          </div>
+                          <div className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: "#001F3F", fontSize: "0.52rem", fontWeight: 800, color: "#fff" }}>{src.owner}</div>
+                        </div>
+                        <div className="flex items-center justify-between gap-2">
+                          <StatusChip status={src.status} id={src.id} />
+                          <span style={{ fontSize: "0.6rem", color: "var(--muted-foreground)", whiteSpace: "nowrap" }}>{src.lastUpdated}</span>
+                        </div>
+                        {src.status === "changed" && analyzing !== src.id && (
+                          <button onClick={e => { e.stopPropagation(); setAnalyzing(src.id); setTimeout(() => setAnalyzing(null), 2400); }} className="w-full px-2 py-1.5 rounded-lg hover:opacity-90 transition-all" style={{ fontSize: "0.68rem", fontWeight: 800, background: "#001F3F", color: "#DBE64C", textAlign: "center" }}>
+                            Analyze changes
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               )}
             </div>
-          );
-        })}
-      </div>
+          </motion.aside>
+        ) : (
+          <motion.div
+            key="content-sources-tab"
+            initial={{ width: 0, opacity: 0 }}
+            animate={{ width: 48, opacity: 1 }}
+            exit={{ width: 0, opacity: 0 }}
+            transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+            className="border-r border-border flex-shrink-0 overflow-hidden"
+            style={{ background: "var(--background)" }}
+          >
+            <button onClick={onToggle} className="w-full h-full flex items-start justify-center pt-4 hover:bg-secondary transition-colors" style={{ color: "var(--muted-foreground)" }}>
+              <span className="flex items-center gap-1.5" style={{ writingMode: "vertical-rl", transform: "rotate(180deg)", fontSize: "0.72rem", fontWeight: 800, letterSpacing: "0.04em" }}>
+                <ChevronRight size={13} />Sources
+              </span>
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <AnimatePresence>
         {ctxMenu && (
@@ -545,7 +604,7 @@ function ConnectedSourcesSection({ onSourceSelect }: { onSourceSelect: (id: stri
       </AnimatePresence>
 
       <AnimatePresence>{showConnect && <ConnectSourceModal onClose={() => setShowConnect(false)} />}</AnimatePresence>
-    </div>
+    </>
   );
 }
 
@@ -863,7 +922,6 @@ function MapMode({
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
-      <ConnectedSourcesSection onSourceSelect={onSourceSelect} />
       <ContextWorkStrip />
       <div className="flex-1 overflow-y-auto px-8 py-6">
         <div className="max-w-4xl mx-auto flex flex-col gap-8">
@@ -2707,40 +2765,12 @@ export function Canvas({ theme, onToggleTheme, onNavigate, canvasId }: Props) {
 
       {/* ── Body ── */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Left source rail (not in sources mode — it has its own) */}
-        {mode === "map" && (
-          <AnimatePresence initial={false}>
-            {leftOpen && (
-              <motion.aside
-                initial={{ width: 0, opacity: 0 }}
-                animate={{ width: 0, opacity: 1 }}
-                exit={{ width: 0, opacity: 0 }}
-                transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
-                className="border-r border-border flex flex-col flex-shrink-0 overflow-hidden"
-                style={{ background: "var(--sidebar)" }}
-              >
-                
-                {isEmpty ? (
-                  <div className="flex-1 flex flex-col items-center justify-center p-4 text-center">
-                    <p style={{ fontSize: "0.78rem", color: "var(--muted-foreground)", lineHeight: 1.5 }}>
-                      Add sources using the bar below.
-                    </p>
-                  </div>
-                ) : (
-                  null
-                )}
-                <div className="p-2.5 border-t border-sidebar-border">
-                  
-                </div>
-              </motion.aside>
-            )}
-          </AnimatePresence>
-        )}
-
-        {/* Rail toggle (only when not in sources mode) */}
-        {mode === "map" && (
-          null
-        )}
+        <ContentSourcesPanel
+          open={leftOpen}
+          onToggle={() => setLeftOpen((open) => !open)}
+          onSourceSelect={handleSourceSelect}
+          isEmpty={isEmpty}
+        />
 
         {/* Center content */}
         <div className="flex-1 flex flex-col overflow-hidden">
@@ -2777,13 +2807,11 @@ export function Canvas({ theme, onToggleTheme, onNavigate, canvasId }: Props) {
               )}
               {mode === "workspace" && (
                 <div className="flex-1 flex flex-col overflow-hidden">
-                  <ConnectedSourcesSection onSourceSelect={handleSourceSelect} />
                   <WorkspaceCanvas onAnnotate={handleAnnotate} />
                 </div>
               )}
               {mode === "work" && (
                 <div className="flex-1 flex flex-col overflow-hidden">
-                  <ConnectedSourcesSection onSourceSelect={handleSourceSelect} />
                   <ContextWorkMode />
                 </div>
               )}
