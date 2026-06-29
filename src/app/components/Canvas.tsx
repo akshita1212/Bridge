@@ -6,7 +6,7 @@ import {
   Zap, GitBranch, ArrowUpRight, MessageCircle, Check, AlertTriangle,
   HelpCircle, Search, Map, Clock, BookOpen, Play, Pause,
   Highlighter, Pin, Scissors, Volume2, ChevronRight, MoreHorizontal,
-  Flag, Lightbulb, Target, ArrowRight, Star, Bookmark, Bell
+  Flag, Lightbulb, Target, ArrowRight, Star, Bookmark, Bell, RefreshCw
 } from "lucide-react";
 import type { Page, Theme } from "../App";
 import { WorkspaceCanvas } from "./WorkspaceCanvas";
@@ -50,17 +50,37 @@ const SOURCES: Source[] = [
 
 const SOURCE_ICONS = { pdf: FileText, video: Video, audio: AudioLines, image: Image, link: Globe, note: StickyNote };
 
+function TypeChip({ label, color }: { label: string; color: string }) {
+  return (
+    <span
+      style={{
+        fontSize: "0.62rem",
+        fontWeight: 700,
+        padding: "2px 7px",
+        borderRadius: 99,
+        background: color + "16",
+        color,
+        border: `1px solid ${color}26`,
+        whiteSpace: "nowrap",
+      }}
+    >
+      {label}
+    </span>
+  );
+}
+
 interface ConnectedSource {
   id: string; title: string; provider: string; color: string;
+  type: Source["type"]; meta: string;
   status: "synced" | "changed" | "needs-analysis" | "live"; lastUpdated: string; owner: string;
 }
 const CONNECTED_SOURCES: ConnectedSource[] = [
-  { id: "pdf1",   title: "Assessment Framework v3.pdf", provider: "Upload",        color: "#1E488F", status: "synced",         lastUpdated: "4 days ago",  owner: "JC" },
-  { id: "vid1",   title: "UX Research Session.mp4",     provider: "Upload",        color: "#00804C", status: "synced",         lastUpdated: "5 days ago",  owner: "JC" },
-  { id: "gdoc1",  title: "Design Brief — Q1 2025",      provider: "Google Docs",   color: "#4285F4", status: "changed",        lastUpdated: "8 min ago",   owner: "AR" },
-  { id: "fig1",   title: "Component Library v4",        provider: "Figma",         color: "#F24E1E", status: "needs-analysis", lastUpdated: "2 hours ago", owner: "RM" },
-  { id: "aud1",   title: "Stakeholder Interview.mp3",   provider: "Upload",        color: "#74C365", status: "synced",         lastUpdated: "3 days ago",  owner: "JC" },
-  { id: "sheet1", title: "Project Timeline — 2025",     provider: "Google Sheets", color: "#34A853", status: "live",           lastUpdated: "Live",        owner: "AR" },
+  { id: "pdf1",   title: "Assessment Framework v3.pdf", provider: "Upload",        type: "pdf",   meta: "24 pages",          color: "#1E488F", status: "synced",         lastUpdated: "4 days ago",  owner: "JC" },
+  { id: "vid1",   title: "UX Research Session.mp4",     provider: "Upload",        type: "video", meta: "34:22",             color: "#00804C", status: "synced",         lastUpdated: "5 days ago",  owner: "JC" },
+  { id: "gdoc1",  title: "Design Brief — Q1 2025",      provider: "Google Docs",   type: "note",  meta: "Google Docs",       color: "#4285F4", status: "changed",        lastUpdated: "8 min ago",   owner: "AR" },
+  { id: "fig1",   title: "Component Library v4",        provider: "Figma",         type: "image", meta: "Figma file",        color: "#F24E1E", status: "needs-analysis", lastUpdated: "2 hours ago", owner: "RM" },
+  { id: "aud1",   title: "Stakeholder Interview.mp3",   provider: "Upload",        type: "audio", meta: "18:05",             color: "#74C365", status: "synced",         lastUpdated: "3 days ago",  owner: "JC" },
+  { id: "sheet1", title: "Project Timeline — 2025",     provider: "Google Sheets", type: "link",  meta: "Live spreadsheet",  color: "#34A853", status: "live",           lastUpdated: "Live",        owner: "AR" },
 ];
 const CW_CHIPS = [
   { icon: Target,       label: "4 Tasks",           color: "#5C6B5A" },
@@ -186,6 +206,33 @@ const CANVAS_TITLES: Record<string, string> = {
   "research-notes": "Research Notes — Tier 2 Restaurants",
   new: "Untitled Bridge",
 };
+
+type SourceLike = Source & {
+  provider?: string;
+  owner?: string;
+  lastUpdated?: string;
+  connectedStatus?: ConnectedSource["status"];
+};
+
+function getSourceById(id: string | null): SourceLike | null {
+  if (!id) return null;
+  const source = SOURCES.find((s) => s.id === id);
+  if (source) return source;
+  const connected = CONNECTED_SOURCES.find((s) => s.id === id);
+  if (!connected) return null;
+  return {
+    id: connected.id,
+    type: connected.type,
+    title: connected.title,
+    meta: connected.meta,
+    status: connected.status === "changed" || connected.status === "needs-analysis" ? "updating" : "ready",
+    color: connected.color,
+    provider: connected.provider,
+    owner: connected.owner,
+    lastUpdated: connected.lastUpdated,
+    connectedStatus: connected.status,
+  };
+}
 
 // ─── Source Rail Item ───────────────────────────────────────────────────────
 
@@ -431,9 +478,12 @@ function ConnectedSourcesSection({ onSourceSelect }: { onSourceSelect: (id: stri
     p === "Google Sheets" || p === "Google Drive" ? Globe : p === "Figma" ? Image : FileText;
 
   return (
-    <div className="flex-shrink-0 border-b border-border" style={{ background: "var(--card)" }}>
-      <div className="flex items-center justify-between px-8 pt-2 pb-1">
-        <p style={{ fontSize: "0.7rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--muted-foreground)" }}>Connected Sources</p>
+    <div className="flex-shrink-0 border-b border-border" style={{ background: "var(--sidebar)" }}>
+      <div className="flex items-center justify-between px-8 pt-3 pb-1.5">
+        <div>
+          <p style={{ fontSize: "0.7rem", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--muted-foreground)" }}>Content Sources</p>
+          <p style={{ fontSize: "0.68rem", color: "var(--muted-foreground)", marginTop: 1 }}>Original files, live docs, and source-only references.</p>
+        </div>
         <button onClick={() => setShowConnect(true)} className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-border hover:bg-secondary transition-colors" style={{ fontSize: "0.72rem", fontWeight: 500, color: "var(--muted-foreground)" }}>
           <Plus size={11} />Connect source
         </button>
@@ -447,7 +497,7 @@ function ConnectedSourcesSection({ onSourceSelect }: { onSourceSelect: (id: stri
               onClick={() => onSourceSelect(src.id)}
               onContextMenu={e => { e.preventDefault(); setCtxMenu({ id: src.id, x: e.clientX, y: e.clientY }); }}
               className="flex-shrink-0 flex flex-col gap-1.5 px-3 py-2 rounded-xl border border-border hover:bg-secondary hover:-translate-y-px transition-all cursor-pointer"
-              style={{ background: "var(--background)", width: 250, minHeight: 72, scrollSnapAlign: "start" }}
+              style={{ background: "var(--card)", width: 250, minHeight: 74, scrollSnapAlign: "start", boxShadow: "0 1px 5px rgba(0,31,63,0.04)" }}
             >
               <div className="flex items-start justify-between gap-1.5">
                 <div className="flex items-center gap-2 min-w-0">
@@ -482,7 +532,7 @@ function ConnectedSourcesSection({ onSourceSelect }: { onSourceSelect: (id: stri
           <>
             <div className="fixed inset-0 z-40" onClick={() => setCtxMenu(null)} />
             <motion.div initial={{ opacity: 0, scale: 0.97, y: 4 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.97 }} transition={{ duration: 0.12 }} className="fixed z-50 rounded-xl border border-border overflow-hidden" style={{ left: ctxMenu.x, top: ctxMenu.y, background: "var(--card)", boxShadow: "0 8px 32px rgba(0,31,63,0.14)", minWidth: 200 }}>
-              {[["Analyze changes","Open source","Open in Workspace","Add to Map","Add to main context","Keep as reference"],["Assign follow-up","Add comment","Mark private"],["View version history","Disconnect source"]].map((grp, gi) => (
+              {[["Analyze changes","Open source","Open in Canvas","Add to Map","Add to main context","Keep as reference"],["Assign follow-up","Add comment","Mark private"],["View version history","Disconnect source"]].map((grp, gi) => (
                 <div key={gi} className={gi > 0 ? "border-t border-border" : ""}>
                   {grp.map(item => (
                     <button key={item} onClick={() => setCtxMenu(null)} className="w-full flex items-center px-4 py-2 hover:bg-secondary transition-colors text-left" style={{ fontSize: "0.8rem", fontWeight: 500, color: item === "Disconnect source" ? "#C0392B" : "var(--foreground)" }}>{item}</button>
@@ -502,7 +552,7 @@ function ConnectedSourcesSection({ onSourceSelect }: { onSourceSelect: (id: stri
 // ─── Create Task Modal ────────────────────────────────────────────────────────
 
 function CreateTaskModal({ onClose, prefill }: { onClose: () => void; prefill?: string }) {
-  const [title, setTitle] = useState("");
+  const [title, setTitle] = useState(prefill || "");
   const [assignee, setAssignee] = useState("AR");
   const [status, setStatus] = useState("To do");
   const [priority, setPriority] = useState("Medium");
@@ -814,6 +864,7 @@ function MapMode({
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       <ConnectedSourcesSection onSourceSelect={onSourceSelect} />
+      <ContextWorkStrip />
       <div className="flex-1 overflow-y-auto px-8 py-6">
         <div className="max-w-4xl mx-auto flex flex-col gap-8">
           <div className="flex items-center justify-between">
@@ -860,7 +911,7 @@ function MapMode({
           <>
             <div className="fixed inset-0 z-40" onClick={() => setCardCtx(null)} />
             <motion.div initial={{ opacity: 0, scale: 0.97, y: 4 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.97 }} transition={{ duration: 0.12 }} className="fixed z-50 rounded-xl border border-border overflow-hidden" style={{ left: cardCtx.x, top: cardCtx.y, background: "var(--card)", boxShadow: "0 8px 32px rgba(0,31,63,0.14)", minWidth: 210 }}>
-              {[["View evidence","Open in Workspace","Ask Bridge"],["Create context task","Assign to person","Add comment","Mark as blocked"],["Create audio explainer","Create video explainer"],["Add to main context","Remove from context"]].map((grp, gi) => (
+              {[["View evidence","Open in Canvas","Ask Bridge"],["Create context task","Assign to person","Add comment","Mark as blocked"],["Create audio explainer","Create video explainer"],["Add to main context","Remove from context"]].map((grp, gi) => (
                 <div key={gi} className={gi > 0 ? "border-t border-border" : ""}>
                   {grp.map(item => (
                     <button key={item} onClick={() => setCardCtx(null)} className="w-full flex items-center px-4 py-2 hover:bg-secondary transition-colors text-left" style={{ fontSize: "0.8rem", fontWeight: 500, color: item === "Remove from context" ? "#C0392B" : "var(--foreground)" }}>{item}</button>
@@ -1432,159 +1483,424 @@ function SourcesMode({
 
 // ─── Right Context Panel ─────────────────────────────────────────────────────
 
+function DrawerActionButton({
+  icon: Icon,
+  label,
+  onClick,
+  primary = false,
+}: {
+  icon: React.ElementType;
+  label: string;
+  onClick: () => void;
+  primary?: boolean;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className="flex items-center gap-2 px-3 py-2 rounded-xl border transition-colors text-left"
+      style={{
+        background: primary ? "#001F3F" : "var(--card)",
+        borderColor: primary ? "#001F3F" : "var(--border)",
+        color: primary ? "#DBE64C" : "var(--foreground)",
+        fontSize: "0.8rem",
+        fontWeight: 650,
+      }}
+    >
+      <Icon size={13} style={{ color: primary ? "#DBE64C" : "var(--muted-foreground)", flexShrink: 0 }} />
+      {label}
+    </button>
+  );
+}
+
+function SourceDocumentPreview({
+  source,
+  onAnnotate,
+}: {
+  source: SourceLike;
+  onAnnotate: (action: string) => void;
+}) {
+  const actionMap: Record<Source["type"], { icon: React.ElementType; label: string }[]> = {
+    pdf: [
+      { icon: Highlighter, label: "Highlight" },
+      { icon: StickyNote, label: "Add note" },
+      { icon: GitBranch, label: "Add to Map" },
+    ],
+    video: [
+      { icon: Play, label: "Play moment" },
+      { icon: Scissors, label: "Clip" },
+      { icon: GitBranch, label: "Add to Map" },
+    ],
+    audio: [
+      { icon: Play, label: "Play" },
+      { icon: StickyNote, label: "Timestamp note" },
+      { icon: GitBranch, label: "Add to Map" },
+    ],
+    image: [
+      { icon: Pin, label: "Pin note" },
+      { icon: Lightbulb, label: "Explain visual" },
+      { icon: GitBranch, label: "Add to Map" },
+    ],
+    link: [
+      { icon: Globe, label: "Open link" },
+      { icon: Lightbulb, label: "Extract insight" },
+      { icon: GitBranch, label: "Add to Map" },
+    ],
+    note: [
+      { icon: Highlighter, label: "Highlight" },
+      { icon: MessageCircle, label: "Comment" },
+      { icon: GitBranch, label: "Add to Map" },
+    ],
+  };
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="grid gap-2" style={{ gridTemplateColumns: "repeat(3, minmax(0, 1fr))" }}>
+        {actionMap[source.type].map((action) => (
+          <button
+            key={action.label}
+            onClick={() => onAnnotate(`${action.label} — source updated`)}
+            className="flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg border border-border hover:bg-secondary transition-colors"
+            style={{ fontSize: "0.7rem", fontWeight: 650, color: "var(--muted-foreground)", minHeight: 32 }}
+          >
+            <action.icon size={12} />
+            <span className="truncate">{action.label}</span>
+          </button>
+        ))}
+      </div>
+
+      {source.type === "pdf" && (
+        <div className="rounded-2xl border border-border overflow-hidden" style={{ background: "var(--background)" }}>
+          <div className="px-4 py-3 border-b border-border" style={{ background: "var(--card)" }}>
+            <p style={{ fontSize: "0.72rem", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--muted-foreground)" }}>Original document</p>
+          </div>
+          {[
+            { page: 3, text: "The cognitive assessment process identifies decision-making patterns across explorers, validators, and convergers." },
+            { page: 14, text: "The primary cognitive load peak occurs at the decision gateway, where users must simultaneously process urgency, confidence, and alignment.", highlight: true },
+            { page: 14, text: "Participants averaged 8.3 seconds at this node before choosing, compared with 1.4 seconds at other decision points." },
+            { page: 18, text: "Proposed mitigation: introduce staged disclosure so criteria are presented sequentially and working memory load is reduced." },
+            { page: 21, text: "The revised flow should be validated against stakeholder approval and updated diagram versions before handoff." },
+          ].map((para, i) => (
+            <div key={i} className="px-4 py-4 border-b border-border last:border-none">
+              <p style={{ fontSize: "0.66rem", fontWeight: 800, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 8, fontFamily: "var(--font-mono)" }}>
+                Page {para.page}
+              </p>
+              <p
+                className="select-text"
+                style={{
+                  fontSize: "0.83rem",
+                  lineHeight: 1.7,
+                  background: para.highlight ? "rgba(219,230,76,0.25)" : "transparent",
+                  borderRadius: para.highlight ? 6 : 0,
+                  padding: para.highlight ? "4px 6px" : 0,
+                  margin: para.highlight ? "0 -6px" : 0,
+                }}
+              >
+                {para.text}
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {source.type === "video" && (
+        <div className="flex flex-col gap-4">
+          <div className="rounded-2xl overflow-hidden border border-border" style={{ background: "#0A1220" }}>
+            <div className="relative flex items-center justify-center" style={{ height: 170, background: "linear-gradient(135deg,#0A1220 0%,#1A2E42 100%)" }}>
+              <button className="w-12 h-12 rounded-full flex items-center justify-center" style={{ background: "rgba(255,255,255,0.12)" }}>
+                <Play size={18} style={{ color: "#fff", marginLeft: 2 }} />
+              </button>
+              <div className="absolute top-3 right-3 px-2 py-1 rounded-lg" style={{ background: "rgba(0,0,0,0.52)", color: "#fff", fontSize: "0.72rem", fontFamily: "var(--font-mono)", fontWeight: 700 }}>22:14</div>
+              <div className="absolute bottom-0 left-0 right-0 h-1.5" style={{ background: "rgba(255,255,255,0.12)" }}>
+                <div className="h-full" style={{ width: "38%", background: "#DBE64C" }} />
+              </div>
+            </div>
+          </div>
+          <div className="rounded-2xl border border-border p-4" style={{ background: "var(--background)" }}>
+            <p style={{ fontSize: "0.72rem", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--muted-foreground)", marginBottom: 12 }}>Transcript</p>
+            {[
+              ["00:22:14", "Facilitator", "You can see the hesitation here, about 8 seconds on average."],
+              ["00:24:02", "Participant A", "I was not sure which of the three to pick first."],
+              ["00:25:40", "Facilitator", "The simultaneity is the problem across groups."],
+            ].map(([ts, speaker, text]) => (
+              <div key={ts} className="flex gap-3 mb-3 last:mb-0">
+                <span style={{ fontSize: "0.68rem", fontFamily: "var(--font-mono)", color: "var(--muted-foreground)", width: 54, flexShrink: 0 }}>{ts}</span>
+                <div>
+                  <p style={{ fontSize: "0.7rem", fontWeight: 800, color: "var(--muted-foreground)", marginBottom: 2 }}>{speaker}</p>
+                  <p style={{ fontSize: "0.82rem", lineHeight: 1.6 }}>{text}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {source.type === "audio" && (
+        <div className="flex flex-col gap-4">
+          <div className="rounded-2xl border border-border p-4" style={{ background: "var(--background)" }}>
+            <div className="flex items-center gap-3 mb-4">
+              <button className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: "#001F3F" }}>
+                <Play size={15} style={{ color: "#DBE64C", marginLeft: 1 }} />
+              </button>
+              <div>
+                <p style={{ fontSize: "0.84rem", fontWeight: 750 }}>Stakeholder Interview</p>
+                <p style={{ fontSize: "0.7rem", color: "var(--muted-foreground)", fontFamily: "var(--font-mono)" }}>08:42 / 18:05</p>
+              </div>
+            </div>
+            <WaveformMini progress={0.47} />
+          </div>
+          <div className="rounded-2xl border border-border p-4" style={{ background: "var(--background)" }}>
+            <p style={{ fontSize: "0.72rem", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--muted-foreground)", marginBottom: 12 }}>Transcript</p>
+            {[
+              ["08:12", "The March 1 date in the framework is no longer accurate."],
+              ["08:42", "We have pushed to March 15. The engineering team needs two more weeks for the gateway component.", true],
+              ["09:15", "Treat this conversation as the authoritative source for scheduling."],
+            ].map(([ts, text, highlight]) => (
+              <div key={String(ts)} className="flex gap-3 mb-3 last:mb-0" style={{ background: highlight ? "rgba(219,230,76,0.16)" : "transparent", borderRadius: 8, padding: highlight ? "6px 8px" : 0, marginLeft: highlight ? -8 : 0, marginRight: highlight ? -8 : 0 }}>
+                <span style={{ fontSize: "0.68rem", fontFamily: "var(--font-mono)", color: "var(--muted-foreground)", width: 38, flexShrink: 0 }}>{String(ts)}</span>
+                <p style={{ fontSize: "0.82rem", lineHeight: 1.6 }}>{String(text)}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {source.type === "image" && (
+        <div className="rounded-2xl border border-border overflow-hidden" style={{ background: "var(--background)" }}>
+          <div className="relative flex items-center justify-center" style={{ minHeight: 260 }}>
+            <svg width="330" height="220" viewBox="0 0 330 220" style={{ maxWidth: "100%" }}>
+              <rect width="330" height="220" fill="transparent" />
+              {[
+                { x: 52, y: 110, label: "Start", color: "#74C365" },
+                { x: 140, y: 64, label: "D1", color: "#1E488F" },
+                { x: 140, y: 110, label: "D2", color: "#1E488F" },
+                { x: 140, y: 156, label: "D3", color: "#1E488F" },
+                { x: 224, y: 110, label: "Gateway", color: "#C0392B" },
+                { x: 292, y: 82, label: "Path A", color: "#00804C" },
+                { x: 292, y: 144, label: "Path B", color: "#001F3F" },
+              ].map((node) => (
+                <g key={node.label}>
+                  <rect x={node.x - 34} y={node.y - 14} width={68} height={28} rx={7} fill={node.color + "18"} stroke={node.color} strokeWidth={node.label === "Gateway" ? 2 : 1.25} />
+                  <text x={node.x} y={node.y + 1} textAnchor="middle" dominantBaseline="middle" fontSize={9} fill={node.color} fontWeight={700}>{node.label}</text>
+                </g>
+              ))}
+              {[[86,110,106,64],[86,110,106,110],[86,110,106,156],[174,64,190,110],[174,110,190,110],[174,156,190,110],[258,110,260,82],[258,110,260,144]].map(([x1,y1,x2,y2], i) => (
+                <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} stroke="var(--muted-foreground)" strokeWidth={1} opacity={0.45} />
+              ))}
+              <rect x={198} y={156} width={68} height={26} rx={6} fill="rgba(219,230,76,0.3)" stroke="#DBE64C" strokeWidth={1.5} strokeDasharray="4 2" />
+              <text x={232} y={169} textAnchor="middle" dominantBaseline="middle" fontSize={9} fill="#4A5200" fontWeight={800}>D4: New</text>
+            </svg>
+          </div>
+          <div className="px-4 py-3 border-t border-border" style={{ background: "var(--card)" }}>
+            <p style={{ fontSize: "0.8rem", lineHeight: 1.55 }}>Pinned note: D4 is visible in the diagram but missing from Framework v3.</p>
+          </div>
+        </div>
+      )}
+
+      {(source.type === "note" || source.type === "link") && (
+        <div className="rounded-2xl border border-border p-4" style={{ background: "var(--background)" }}>
+          <p style={{ fontSize: "0.72rem", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--muted-foreground)", marginBottom: 12 }}>
+            {source.type === "note" ? "Document body" : "Linked content"}
+          </p>
+          <p className="select-text" style={{ fontSize: "0.86rem", lineHeight: 1.75 }}>
+            {source.id === "gdoc1"
+              ? "Design brief update: the gateway redesign now needs a single decision owner before the handoff can move forward. The revised brief also asks that source changes be reviewed before they are added to the main Bridge context."
+              : source.id === "sheet1"
+              ? "Project timeline: March 10 research synthesis checkpoint, March 12 decision owner confirmation, March 15 gateway redesign milestone, March 20 alignment review."
+              : "The staged disclosure approach reduces decision latency by presenting one decision criterion at a time instead of forcing users to compare multiple criteria simultaneously."}
+          </p>
+          {source.id === "sheet1" && (
+            <div className="mt-4 rounded-xl border border-border overflow-hidden">
+              {["Mar 10 · Research synthesis · Upcoming", "Mar 12 · Decision owner · Blocked", "Mar 15 · Gateway redesign · On track"].map((row) => (
+                <div key={row} className="px-3 py-2 border-b border-border last:border-none" style={{ background: "var(--card)", fontSize: "0.78rem" }}>{row}</div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function WaveformMini({ progress }: { progress: number }) {
+  const bars = [0.3,0.6,0.4,0.8,0.5,1,0.7,0.8,0.5,0.3,0.6,0.8,0.4,0.7,0.9,0.5,0.3,0.6,0.4,0.7,0.8,0.5,0.9,0.3];
+  return (
+    <div className="flex items-center gap-0.5 h-12">
+      {bars.map((h, i) => (
+        <div
+          key={i}
+          className="flex-1 rounded-sm"
+          style={{ height: `${h * 100}%`, background: i / bars.length < progress ? "#00804C" : "var(--border)", opacity: 0.75 }}
+        />
+      ))}
+    </div>
+  );
+}
+
 function RightPanel({
   cardId,
   sourceId,
   onClose,
   onSourceSelect,
+  onOpenWorkspace,
+  onAnnotate,
 }: {
   cardId: string | null;
   sourceId: string | null;
   onClose: () => void;
   onSourceSelect: (id: string) => void;
+  onOpenWorkspace: () => void;
+  onAnnotate: (action: string) => void;
 }) {
   const card = MAP_CARDS.find((c) => c.id === cardId);
-  const source = SOURCES.find((s) => s.id === sourceId);
-  const active = card || source;
-  if (!active) return null;
+  const source = getSourceById(sourceId);
+  if (!card && !source) return null;
+
+  const firstSource = card?.sources[0] ? getSourceById(card.sources[0]) : null;
 
   return (
     <motion.aside
-      initial={{ x: 300, opacity: 0 }}
+      initial={{ x: 420, opacity: 0 }}
       animate={{ x: 0, opacity: 1 }}
-      exit={{ x: 300, opacity: 0 }}
+      exit={{ x: 420, opacity: 0 }}
       transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-      className="w-72 flex-shrink-0 border-l border-border flex flex-col"
-      style={{ background: "var(--card)" }}
+      className="flex-shrink-0 border-l border-border flex flex-col"
+      style={{ width: 400, maxWidth: "42vw", minWidth: 360, background: "var(--card)", boxShadow: "-6px 0 28px rgba(0,31,63,0.08)" }}
     >
-      <div className="flex items-center justify-between px-4 py-3.5 border-b border-border">
-        <p style={{ fontWeight: 600, fontSize: "0.875rem" }}>
-          {card ? "Insight evidence" : "Source detail"}
-        </p>
+      <div className="flex items-center justify-between px-4 py-3.5 border-b border-border" style={{ background: "var(--sidebar)" }}>
+        <div>
+          <p style={{ fontWeight: 800, fontSize: "0.9rem" }}>
+            {source ? "Original source" : "Insight evidence"}
+          </p>
+          <p style={{ fontSize: "0.68rem", color: "var(--muted-foreground)", marginTop: 1 }}>
+            {source ? "Scroll the source without leaving this space" : "Evidence, confidence, and source links"}
+          </p>
+        </div>
         <button onClick={onClose} className="hover:bg-secondary rounded-lg p-1 transition-colors" style={{ color: "var(--muted-foreground)" }}>
           <X size={14} />
         </button>
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-4">
-        {/* Title */}
-        <div>
-          <p style={{ fontWeight: 700, fontSize: "0.9rem", lineHeight: 1.4 }}>
-            {"title" in active ? active.title : ""}
-          </p>
-          {"body" in active && (
-            <p style={{ fontSize: "0.8rem", color: "var(--muted-foreground)", lineHeight: 1.6, marginTop: 4 }}>
-              {active.body}
-            </p>
-          )}
-          {"meta" in active && (
-            <p style={{ fontSize: "0.78rem", color: "var(--muted-foreground)", marginTop: 3 }}>
-              {active.meta}
-            </p>
-          )}
-        </div>
-
-        <div className="h-px bg-border" />
-
-        {/* Source reference */}
-        <div>
-          <p style={{ fontSize: "0.72rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--muted-foreground)", marginBottom: 8 }}>
-            Source reference
-          </p>
-          <div className="p-3.5 rounded-xl border border-border" style={{ background: "var(--secondary)", fontSize: "0.825rem", lineHeight: 1.65, fontStyle: "italic" }}>
-            {card && card.sources[0] === "pdf1" && '"The primary cognitive load peak occurs at the decision gateway, where users must simultaneously process three competing criteria…"'}
-            {card && card.sources[0] === "aud1" && '"We\'ve pushed to March 15th. The engineering team needs two more weeks for the gateway component specifically."'}
-            {card && card.sources[0] === "img1" && "Decision Node D4 appears in the flow diagram but is absent from Framework v3."}
-            {(!card || card.sources.length === 0) && "No direct source quote — Bridge inferred this from patterns across multiple sources."}
-            {source && `Source: ${source.title} · ${source.meta}`}
-          </div>
-          {card && card.sources[0] === "pdf1" && (
-            <p style={{ fontSize: "0.7rem", color: "var(--muted-foreground)", marginTop: 5, fontFamily: "var(--font-mono)" }}>
-              Assessment Framework v3.pdf · Page 14
-            </p>
-          )}
-          {card && card.sources[0] === "aud1" && (
-            <p style={{ fontSize: "0.7rem", color: "var(--muted-foreground)", marginTop: 5, fontFamily: "var(--font-mono)" }}>
-              Stakeholder Interview · Timestamp 08:42
-            </p>
-          )}
-        </div>
-
-        {/* Confidence */}
-        {card && (
-          <div>
-            <p style={{ fontSize: "0.72rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--muted-foreground)", marginBottom: 6 }}>
-              Confidence
-            </p>
-            <div className="flex items-center gap-2">
-              <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: "var(--border)" }}>
-                <div
-                  className="h-full rounded-full"
-                  style={{
-                    width: card.confidence === "confirmed" ? "92%" : card.confidence === "inferred" ? "65%" : "30%",
-                    background: card.confidence === "confirmed" ? "#00804C" : card.confidence === "inferred" ? "#DBE64C" : "#C0392B",
-                  }}
-                />
+        {source && (() => {
+          const Icon = SOURCE_ICONS[source.type];
+          return (
+            <>
+              <div className="rounded-2xl border border-border p-3.5" style={{ background: "var(--background)" }}>
+                <div className="flex items-start gap-3">
+                  <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: source.color + "18" }}>
+                    <Icon size={16} style={{ color: source.color }} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p style={{ fontWeight: 800, fontSize: "0.95rem", lineHeight: 1.35 }}>{source.title}</p>
+                    <div className="flex flex-wrap gap-1.5 mt-2">
+                      <TypeChip label={source.meta} color={source.color} />
+                      {source.provider && <TypeChip label={source.provider} color="#5C6B5A" />}
+                      {source.connectedStatus && <TypeChip label={source.connectedStatus === "needs-analysis" ? "Needs analysis" : source.connectedStatus} color={source.connectedStatus === "changed" || source.connectedStatus === "needs-analysis" ? "#C0392B" : "#00804C"} />}
+                    </div>
+                    {source.lastUpdated && (
+                      <p style={{ fontSize: "0.7rem", color: "var(--muted-foreground)", marginTop: 8 }}>
+                        Last updated {source.lastUpdated}{source.owner ? ` by ${source.owner}` : ""}
+                      </p>
+                    )}
+                  </div>
+                </div>
               </div>
-              <span style={{ fontSize: "0.75rem", fontWeight: 600, color: card.confidence === "confirmed" ? "#00804C" : card.confidence === "inferred" ? "#4A5200" : "#C0392B" }}>
-                {card.confidence === "confirmed" ? "High" : card.confidence === "inferred" ? "Medium" : "Low"}
-              </span>
+
+              <div className="grid gap-2" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
+                <DrawerActionButton icon={ArrowUpRight} label="Open original" onClick={() => onAnnotate("Original source opened")} primary />
+                <DrawerActionButton icon={BookOpen} label="Open in Canvas" onClick={onOpenWorkspace} />
+                <DrawerActionButton icon={Lightbulb} label="Ask this source" onClick={() => onAnnotate("Ask Bridge — source scoped")} />
+                <DrawerActionButton icon={Zap} label="Analyze changes" onClick={() => onAnnotate("Analyzing source changes")} />
+              </div>
+
+              <SourceDocumentPreview source={source} onAnnotate={onAnnotate} />
+            </>
+          );
+        })()}
+
+        {card && (
+          <>
+            <div>
+              <p style={{ fontWeight: 800, fontSize: "1rem", lineHeight: 1.35 }}>{card.title}</p>
+              <p style={{ fontSize: "0.83rem", color: "var(--muted-foreground)", lineHeight: 1.65, marginTop: 6 }}>{card.body}</p>
             </div>
-            <p style={{ fontSize: "0.72rem", color: "var(--muted-foreground)", marginTop: 4 }}>
-              {card.confidence === "confirmed" ? "Source-backed" : card.confidence === "inferred" ? "AI inferred" : "Needs confirmation"}
-            </p>
-          </div>
-        )}
 
-        {/* Related sources */}
-        {card && card.sources.length > 0 && (
-          <div>
-            <p style={{ fontSize: "0.72rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--muted-foreground)", marginBottom: 8 }}>
-              Linked sources
-            </p>
-            {card.sources.map((sid) => {
-              const src = SOURCES.find((s) => s.id === sid);
-              if (!src) return null;
-              const Icon = SOURCE_ICONS[src.type];
-              return (
-                <button
-                  key={sid}
-                  onClick={() => onSourceSelect(sid)}
-                  className="w-full flex items-center gap-2.5 p-2.5 rounded-xl hover:bg-secondary transition-colors mb-1.5 text-left"
-                  style={{ border: "1px solid var(--border)" }}
-                >
-                  <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: src.color + "18" }}>
-                    <Icon size={13} style={{ color: src.color }} />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="truncate" style={{ fontSize: "0.8rem", fontWeight: 500 }}>{src.title}</p>
-                    <p style={{ fontSize: "0.7rem", color: "var(--muted-foreground)" }}>{src.meta}</p>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        )}
+            <div className="rounded-2xl border border-border p-4" style={{ background: "var(--background)" }}>
+              <p style={{ fontSize: "0.72rem", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--muted-foreground)", marginBottom: 9 }}>
+                Source reference
+              </p>
+              <p style={{ fontSize: "0.86rem", lineHeight: 1.7, fontStyle: "italic" }}>
+                {card.sources[0] === "pdf1" && "The primary cognitive load peak occurs at the decision gateway, where users must process three criteria at the same time."}
+                {card.sources[0] === "aud1" && "We have pushed to March 15. The engineering team needs two more weeks for the gateway component."}
+                {card.sources[0] === "img1" && "Decision Node D4 appears in the flow diagram but is absent from Framework v3."}
+                {card.sources[0] === "link1" && "External cognitive load guidance supports staged disclosure for multi-step decisions."}
+                {card.sources.length === 0 && "No direct source quote yet. Bridge inferred this from patterns across multiple sources."}
+              </p>
+              <p style={{ fontSize: "0.7rem", color: "var(--muted-foreground)", marginTop: 9, fontFamily: "var(--font-mono)" }}>
+                {firstSource ? `${firstSource.title} · ${firstSource.type === "pdf" ? "Page 14" : firstSource.meta}` : "Needs source confirmation"}
+              </p>
+            </div>
 
-        {/* Actions */}
-        <div className="flex flex-col gap-1.5 pt-1">
-          {[
-            { icon: MessageCircle, label: "Add note" },
-            { icon: Flag, label: "Mark important" },
-            { icon: GitBranch, label: "Add to Map" },
-            { icon: Lightbulb, label: "Ask Bridge" },
-            { icon: ArrowUpRight, label: "Open source" },
-          ].map((action) => (
-            <button
-              key={action.label}
-              className="flex items-center gap-2 w-full px-3 py-2 rounded-xl border border-border hover:bg-secondary transition-colors"
-              style={{ fontSize: "0.825rem", fontWeight: 500 }}
-            >
-              <action.icon size={13} style={{ color: "var(--muted-foreground)" }} />
-              {action.label}
-            </button>
-          ))}
-        </div>
+            <div>
+              <p style={{ fontSize: "0.72rem", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--muted-foreground)", marginBottom: 8 }}>
+                Confidence
+              </p>
+              <div className="flex items-center gap-2">
+                <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ background: "var(--border)" }}>
+                  <div
+                    className="h-full rounded-full"
+                    style={{
+                      width: card.confidence === "confirmed" ? "92%" : card.confidence === "inferred" ? "65%" : "30%",
+                      background: card.confidence === "confirmed" ? "#00804C" : card.confidence === "inferred" ? "#DBE64C" : "#C0392B",
+                    }}
+                  />
+                </div>
+                <span style={{ fontSize: "0.78rem", fontWeight: 750, color: card.confidence === "confirmed" ? "#00804C" : card.confidence === "inferred" ? "#4A5200" : "#C0392B" }}>
+                  {card.confidence === "confirmed" ? "High" : card.confidence === "inferred" ? "Medium" : "Low"}
+                </span>
+              </div>
+            </div>
+
+            {card.sources.length > 0 && (
+              <div>
+                <p style={{ fontSize: "0.72rem", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--muted-foreground)", marginBottom: 8 }}>
+                  Linked sources
+                </p>
+                {card.sources.map((sid) => {
+                  const src = getSourceById(sid);
+                  if (!src) return null;
+                  const Icon = SOURCE_ICONS[src.type];
+                  return (
+                    <button
+                      key={sid}
+                      onClick={() => onSourceSelect(sid)}
+                      className="w-full flex items-center gap-2.5 p-2.5 rounded-xl hover:bg-secondary transition-colors mb-1.5 text-left"
+                      style={{ border: "1px solid var(--border)", background: "var(--card)" }}
+                    >
+                      <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: src.color + "18" }}>
+                        <Icon size={13} style={{ color: src.color }} />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate" style={{ fontSize: "0.8rem", fontWeight: 650 }}>{src.title}</p>
+                        <p style={{ fontSize: "0.7rem", color: "var(--muted-foreground)" }}>{src.meta}</p>
+                      </div>
+                      <ChevronRight size={12} style={{ color: "var(--muted-foreground)" }} />
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            <div className="grid gap-2" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
+              <DrawerActionButton icon={MessageCircle} label="Add note" onClick={() => onAnnotate("Note added to insight")} />
+              <DrawerActionButton icon={Flag} label="Mark important" onClick={() => onAnnotate("Insight marked important")} />
+              <DrawerActionButton icon={GitBranch} label="Add to Map" onClick={() => onAnnotate("Insight added to Map")} />
+              <DrawerActionButton icon={Lightbulb} label="Ask Bridge" onClick={() => onAnnotate("Ask Bridge — insight scoped")} />
+              <DrawerActionButton icon={ArrowUpRight} label="Open original" onClick={() => firstSource && onSourceSelect(firstSource.id)} primary />
+              <DrawerActionButton icon={BookOpen} label="Open in Canvas" onClick={onOpenWorkspace} />
+            </div>
+          </>
+        )}
       </div>
     </motion.aside>
   );
@@ -1793,18 +2109,47 @@ function ContextWorkMode() {
 // ─── Bottom Command Bar ──────────────────────────────────────────────────────
 
 const MODE_ITEMS = [
-  { id: "map"       as WorkspaceMode, icon: Map,    label: "Map"           },
-  { id: "workspace" as WorkspaceMode, icon: BookOpen,label: "Workspace"    },
-  { id: "work"      as WorkspaceMode, icon: Target,  label: "Context Work" },
+  { id: "map"       as WorkspaceMode, icon: Map,     label: "Understanding" },
+  { id: "workspace" as WorkspaceMode, icon: BookOpen, label: "Canvas"        },
+  { id: "work"      as WorkspaceMode, icon: Target,   label: "Action Hub"    },
 ];
 
-const INPUT_ACTIONS = [
-  { id: "upload", icon: Upload, label: "Upload" },
-  { id: "link", icon: Link2, label: "Paste link" },
-  { id: "note", icon: StickyNote, label: "Post-it" },
-  { id: "record", icon: Mic, label: "Record" },
-  { id: "more", icon: Plus, label: "More" },
-];
+type BottomActionId =
+  | "upload"
+  | "link"
+  | "note"
+  | "record"
+  | "more"
+  | "analyze"
+  | "refresh"
+  | "task"
+  | "assign"
+  | "comment"
+  | "changes";
+
+const INPUT_ACTIONS_BY_MODE: Record<WorkspaceMode, { id: BottomActionId; icon: React.ElementType; label: string }[]> = {
+  map: [
+    { id: "upload",  icon: Upload,    label: "Upload" },
+    { id: "link",    icon: Link2,     label: "Paste link" },
+    { id: "analyze", icon: Zap,       label: "Analyze" },
+    { id: "refresh", icon: RefreshCw, label: "Refresh" },
+    { id: "more",    icon: Plus,      label: "More" },
+  ],
+  workspace: [
+    { id: "upload", icon: Upload,     label: "Upload" },
+    { id: "link",   icon: Link2,      label: "Paste link" },
+    { id: "note",   icon: StickyNote, label: "Post-it" },
+    { id: "record", icon: Mic,        label: "Record" },
+    { id: "more",   icon: Plus,       label: "More" },
+  ],
+  work: [
+    { id: "task",    icon: Target,         label: "New task" },
+    { id: "assign",  icon: ArrowRight,     label: "Assign" },
+    { id: "comment", icon: MessageCircle,  label: "Comment" },
+    { id: "changes", icon: AlertTriangle,  label: "Review changes" },
+    { id: "more",    icon: Plus,           label: "More" },
+  ],
+};
 
 function BottomCommandBar({
   mode,
@@ -1813,8 +2158,10 @@ function BottomCommandBar({
 }: {
   mode: WorkspaceMode;
   onModeChange: (m: WorkspaceMode) => void;
-  onAction: (id: string) => void;
+  onAction: (id: BottomActionId) => void;
 }) {
+  const actions = INPUT_ACTIONS_BY_MODE[mode];
+
   return (
     <div
       className="flex items-center gap-1 px-2 py-1.5 rounded-2xl border border-border"
@@ -1847,7 +2194,7 @@ function BottomCommandBar({
       <div className="w-px h-5 bg-border mx-0.5" />
 
       {/* Input actions */}
-      {INPUT_ACTIONS.map((action) => (
+      {actions.map((action) => (
         <button
           key={action.id}
           onClick={() => onAction(action.id)}
@@ -1937,7 +2284,7 @@ function PasteLinkModal({ onClose, onConfirm }: { onClose: () => void; onConfirm
               <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} className="rounded-xl border border-border p-3" style={{ background: "var(--secondary)" }}>
                 <p style={{ fontSize: "0.67rem", color: "var(--muted-foreground)", fontFamily: "var(--font-mono)", marginBottom: 4 }}>{url}</p>
                 <p style={{ fontWeight: 600, fontSize: "0.85rem", marginBottom: 8 }}>Preview loaded — ready to add</p>
-                <button onClick={() => onConfirm("Link")} className="w-full py-2 rounded-xl" style={{ background: "#001F3F", color: "#DBE64C", fontSize: "0.85rem", fontWeight: 600 }}>Add to Workspace</button>
+                <button onClick={() => onConfirm("Link")} className="w-full py-2 rounded-xl" style={{ background: "#001F3F", color: "#DBE64C", fontSize: "0.85rem", fontWeight: 600 }}>Add to Canvas</button>
               </motion.div>
             )}
           </AnimatePresence>
@@ -2011,7 +2358,7 @@ function RecordModal({ onClose, onConfirm }: { onClose: () => void; onConfirm: (
                 {recording ? <div className="w-4 h-4 rounded-sm bg-white" /> : <Mic size={18} style={{ color: "#DBE64C" }} />}
               </button>
             ) : (
-              <button onClick={() => onConfirm("Recording")} className="px-6 py-2.5 rounded-xl" style={{ background: "#001F3F", color: "#DBE64C", fontSize: "0.875rem", fontWeight: 600 }}>Save to Workspace</button>
+              <button onClick={() => onConfirm("Recording")} className="px-6 py-2.5 rounded-xl" style={{ background: "#001F3F", color: "#DBE64C", fontSize: "0.875rem", fontWeight: 600 }}>Save to Canvas</button>
             )}
             <button onClick={onClose} className="px-4 py-2 rounded-xl border border-border hover:bg-secondary transition-colors" style={{ fontSize: "0.8rem", fontWeight: 500, color: "var(--muted-foreground)" }}>Cancel</button>
           </div>
@@ -2021,18 +2368,70 @@ function RecordModal({ onClose, onConfirm }: { onClose: () => void; onConfirm: (
   );
 }
 
-function MoreMenu({ onClose, onSelect }: { onClose: () => void; onSelect: (l: string) => void }) {
-  const groups = [
-    [{ icon: Globe, label: "Connect Google Drive" }, { icon: FileText, label: "Connect Microsoft file" }, { icon: Image, label: "Connect Figma file" }],
-    [{ icon: Plus, label: "Add task" }, { icon: MessageCircle, label: "Add comment" }, { icon: Map, label: "Create context frame" }],
-    [{ icon: AudioLines, label: "Create audio" }, { icon: Video, label: "Create video" }, { icon: BookOpen, label: "Create document" }, { icon: Zap, label: "Analyze connected changes" }],
-  ];
+function QuickActionModal({
+  title,
+  description,
+  placeholder,
+  confirmLabel,
+  onClose,
+  onConfirm,
+}: {
+  title: string;
+  description: string;
+  placeholder: string;
+  confirmLabel: string;
+  onClose: () => void;
+  onConfirm: (value: string) => void;
+}) {
+  const [value, setValue] = useState("");
+  return (
+    <>
+      <Backdrop onClick={onClose} />
+      <motion.div initial={{ opacity: 0, y: 10, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 6 }} transition={{ duration: 0.18, ease: [0.16,1,0.3,1] }} className="fixed bottom-28 left-1/2 -translate-x-1/2 z-50 w-96 rounded-2xl border border-border overflow-hidden" style={{ background: "var(--card)", boxShadow: "0 16px 48px rgba(0,31,63,0.16)" }}>
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+          <p style={{ fontWeight: 800, fontSize: "0.875rem" }}>{title}</p>
+          <button onClick={onClose} className="hover:bg-secondary rounded-lg p-1 transition-colors" style={{ color: "var(--muted-foreground)" }}><X size={13} /></button>
+        </div>
+        <div className="p-4 flex flex-col gap-3">
+          <p style={{ fontSize: "0.8rem", color: "var(--muted-foreground)", lineHeight: 1.55 }}>{description}</p>
+          <textarea value={value} onChange={e => setValue(e.target.value)} placeholder={placeholder} rows={4} className="w-full px-3 py-2.5 rounded-xl border border-border outline-none resize-none" style={{ fontSize: "0.875rem", background: "var(--input-background)", lineHeight: 1.55 }} autoFocus />
+          <button onClick={() => value.trim() && onConfirm(value)} className="w-full py-2.5 rounded-xl transition-all" style={{ background: value.trim() ? "#001F3F" : "var(--secondary)", color: value.trim() ? "#DBE64C" : "var(--muted-foreground)", fontSize: "0.875rem", fontWeight: 800 }}>
+            {confirmLabel}
+          </button>
+        </div>
+      </motion.div>
+    </>
+  );
+}
+
+function MoreMenu({ mode, onClose, onSelect }: { mode: WorkspaceMode; onClose: () => void; onSelect: (l: string) => void }) {
+  const groupsByMode: Record<WorkspaceMode, { icon: React.ElementType; label: string }[][]> = {
+    map: [
+      [{ icon: Upload, label: "Upload source" }, { icon: Globe, label: "Connect live source" }, { icon: Link2, label: "Paste source link" }],
+      [{ icon: Zap, label: "Analyze all sources" }, { icon: RefreshCw, label: "Refresh Understanding" }, { icon: GitBranch, label: "View source coverage" }],
+      [{ icon: BookOpen, label: "Open evidence drawer" }, { icon: Share2, label: "Share understanding" }],
+    ],
+    workspace: [
+      [{ icon: Globe, label: "Connect Google Drive" }, { icon: FileText, label: "Connect Microsoft file" }, { icon: Image, label: "Connect Figma file" }],
+      [{ icon: StickyNote, label: "Add post-it" }, { icon: MessageCircle, label: "Start Bridge session" }, { icon: Map, label: "Create context frame" }],
+      [{ icon: AudioLines, label: "Create audio" }, { icon: Video, label: "Create video" }, { icon: BookOpen, label: "Create document" }, { icon: Zap, label: "Analyze selected sources" }],
+    ],
+    work: [
+      [{ icon: Target, label: "Add task" }, { icon: ArrowRight, label: "Assign owner" }, { icon: MessageCircle, label: "Add comment" }],
+      [{ icon: AlertTriangle, label: "Review changed files" }, { icon: HelpCircle, label: "Resolve question" }, { icon: Check, label: "Mark decision done" }],
+      [{ icon: BookOpen, label: "Create handoff brief" }, { icon: Share2, label: "Share Action Hub" }],
+    ],
+  };
+  const groups = groupsByMode[mode];
+
   return (
     <>
       <Backdrop onClick={onClose} />
       <motion.div initial={{ opacity: 0, y: 8, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 6 }} transition={{ duration: 0.15, ease: [0.16,1,0.3,1] }} className="fixed bottom-28 left-1/2 -translate-x-1/2 z-50 w-64 rounded-2xl border border-border overflow-hidden" style={{ background: "var(--card)", boxShadow: "0 16px 48px rgba(0,31,63,0.14)" }}>
         <div className="px-4 py-2.5 border-b border-border">
-          <p style={{ fontSize: "0.72rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--muted-foreground)" }}>More options</p>
+          <p style={{ fontSize: "0.72rem", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--muted-foreground)" }}>
+            {mode === "map" ? "Understanding actions" : mode === "workspace" ? "Canvas actions" : "Action Hub actions"}
+          </p>
         </div>
         <div className="py-1">
           {groups.map((grp, gi) => (
@@ -2099,9 +2498,13 @@ export function Canvas({ theme, onToggleTheme, onNavigate, canvasId }: Props) {
     setTimeout(() => setProcessingMsg(null), 3000);
   };
 
-  const [activeAction, setActiveAction] = useState<"upload"|"paste-link"|"post-it"|"record"|"more"|null>(null);
+  const [activeAction, setActiveAction] = useState<"upload"|"paste-link"|"post-it"|"record"|"more"|"task"|null>(null);
+  const [quickAction, setQuickAction] = useState<{ title: string; description: string; placeholder: string; confirmLabel: string } | null>(null);
 
-  const closeAction = () => setActiveAction(null);
+  const closeAction = () => {
+    setActiveAction(null);
+    setQuickAction(null);
+  };
   const confirmSource = (label: string) => {
     closeAction();
     if (isEmpty) setIsEmpty(false);
@@ -2110,12 +2513,60 @@ export function Canvas({ theme, onToggleTheme, onNavigate, canvasId }: Props) {
     setTimeout(() => { setProcessingMsg("Map refreshed"); setTimeout(() => setProcessingMsg(null), 2000); }, 2200);
   };
 
-  const handleInputAction = (id: string) => {
+  const runAnalysis = (label = "Analyzing connected sources…") => {
+    addToast(label);
+    setProcessingMsg("Analyzing sources…");
+    setTimeout(() => { setProcessingMsg("Understanding refreshed"); setTimeout(() => setProcessingMsg(null), 2200); }, 1800);
+  };
+
+  const handleInputAction = (id: BottomActionId) => {
     if (id === "upload") { setActiveAction("upload");    return; }
     if (id === "link")   { setActiveAction("paste-link"); return; }
     if (id === "note")   { setActiveAction("post-it");   return; }
     if (id === "record") { setActiveAction("record");    return; }
     if (id === "more")   { setActiveAction("more");      return; }
+    if (id === "task")   { setActiveAction("task");      return; }
+    if (id === "analyze") { runAnalysis(); return; }
+    if (id === "refresh") {
+      addToast("Understanding refreshed from current sources");
+      setProcessingMsg("Map refreshed");
+      setTimeout(() => setProcessingMsg(null), 2200);
+      return;
+    }
+    if (id === "changes") { runAnalysis("Reviewing changed files…"); return; }
+    if (id === "assign") {
+      setQuickAction({
+        title: "Assign context work",
+        description: "Assign ownership to a source-backed task, question, decision, or changed file.",
+        placeholder: "Assign BRG-12 to Aditi for decision owner confirmation…",
+        confirmLabel: "Create assignment",
+      });
+      return;
+    }
+    if (id === "comment") {
+      setQuickAction({
+        title: "Add context comment",
+        description: "Leave a comment tied to the current Bridge context so it stays connected to the work.",
+        placeholder: "Ask Rohan to verify whether D4 should be added to Framework v3…",
+        confirmLabel: "Add comment",
+      });
+      return;
+    }
+  };
+
+  const handleMoreSelect = (label: string) => {
+    if (label.includes("Upload")) { setActiveAction("upload"); return; }
+    if (label.includes("Paste")) { setActiveAction("paste-link"); return; }
+    if (label.includes("post-it")) { setActiveAction("post-it"); return; }
+    if (label.includes("task") || label.includes("Task")) { setActiveAction("task"); return; }
+    if (label.includes("Assign")) { handleInputAction("assign"); return; }
+    if (label.includes("comment") || label.includes("Comment")) { handleInputAction("comment"); return; }
+    if (label.includes("Analyze") || label.includes("Review changed")) { runAnalysis(`${label} — started`); return; }
+    if (label.includes("Refresh")) {
+      handleInputAction("refresh");
+      return;
+    }
+    addToast(`${label} — opening…`);
   };
 
   const handleTimelineSelect = (sourceId: string | null, detail: string) => {
@@ -2360,6 +2811,11 @@ export function Canvas({ theme, onToggleTheme, onNavigate, canvasId }: Props) {
               sourceId={selectedSourceId}
               onClose={handlePanelClose}
               onSourceSelect={handleSourceSelect}
+              onOpenWorkspace={() => {
+                setMode("workspace");
+                setRightOpen(false);
+              }}
+              onAnnotate={handleAnnotate}
             />
           )}
         </AnimatePresence>
@@ -2391,7 +2847,21 @@ export function Canvas({ theme, onToggleTheme, onNavigate, canvasId }: Props) {
         {activeAction === "paste-link" && <PasteLinkModal onClose={closeAction} onConfirm={confirmSource} />}
         {activeAction === "post-it"    && <PostItModal    onClose={closeAction} onConfirm={confirmSource} />}
         {activeAction === "record"     && <RecordModal    onClose={closeAction} onConfirm={confirmSource} />}
-        {activeAction === "more"       && <MoreMenu       onClose={closeAction} onSelect={(l) => addToast(`${l} — opening…`)} />}
+        {activeAction === "task"       && <CreateTaskModal onClose={closeAction} prefill="New source-backed action" />}
+        {activeAction === "more"       && <MoreMenu       mode={mode} onClose={closeAction} onSelect={handleMoreSelect} />}
+        {quickAction && (
+          <QuickActionModal
+            title={quickAction.title}
+            description={quickAction.description}
+            placeholder={quickAction.placeholder}
+            confirmLabel={quickAction.confirmLabel}
+            onClose={closeAction}
+            onConfirm={(value) => {
+              addToast(`${quickAction.confirmLabel} — ${value.slice(0, 32)}${value.length > 32 ? "…" : ""}`);
+              closeAction();
+            }}
+          />
+        )}
       </AnimatePresence>
 
       {/* Share modal */}

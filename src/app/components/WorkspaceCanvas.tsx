@@ -769,72 +769,17 @@ function BridgeStudio({
   const showBack = panelState !== "default" || isSource || isOutput;
 
   return (
-    <>
-      {/* Collapsed pill */}
-      <AnimatePresence>
-        {!open && (
-          <motion.button
-            initial={{ opacity: 0, x: 16 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 16 }}
-            transition={{ duration: 0.18 }}
-            onClick={onToggle}
-            style={{
-              position: "absolute",
-              right: 0,
-              top: "50%",
-              transform: "translateY(-50%)",
-              zIndex: 20,
-              width: 26,
-              height: 110,
-              borderRadius: "8px 0 0 8px",
-              background: "var(--card)",
-              border: "1.5px solid var(--border)",
-              borderRight: "none",
-              boxShadow: "-2px 4px 16px rgba(0,31,63,0.1)",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <span
-              style={{
-                fontSize: "0.62rem",
-                fontWeight: 700,
-                color: "var(--muted-foreground)",
-                textTransform: "uppercase",
-                letterSpacing: "0.07em",
-                writingMode: "vertical-rl",
-                transform: "rotate(180deg)",
-                whiteSpace: "nowrap",
-              }}
-            >
-              Create / Ask
-            </span>
-          </motion.button>
-        )}
-      </AnimatePresence>
-
-      {/* Expanded drawer */}
-      <AnimatePresence>
+    <AnimatePresence initial={false}>
         {open && (
           <motion.aside
-            initial={{ x: 296, opacity: 0 }}
+            initial={{ x: 320, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
-            exit={{ x: 296, opacity: 0 }}
+            exit={{ x: 320, opacity: 0 }}
             transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+            className="h-full flex-shrink-0 border-l border-border flex flex-col"
             style={{
-              position: "absolute",
-              right: 0,
-              top: 0,
-              bottom: 0,
-              width: 296,
-              zIndex: 20,
-              display: "flex",
-              flexDirection: "column",
+              width: 320,
               background: "var(--card)",
-              borderLeft: "1.5px solid var(--border)",
               boxShadow: "-4px 0 24px rgba(0,31,63,0.08)",
             }}
           >
@@ -844,14 +789,17 @@ function BridgeStudio({
               <div className="flex items-center gap-1">
                 {showBack && (
                   <button
-                    onClick={() => onPanelState("default")}
+                    onClick={() => {
+                      if (panelState !== "default") onPanelState("default");
+                      else onClose();
+                    }}
                     className="px-2 py-1 rounded-lg hover:bg-secondary transition-colors"
                     style={{ fontSize: "0.72rem", color: "var(--muted-foreground)" }}
                   >
                     Back
                   </button>
                 )}
-                <button onClick={onToggle} className="w-6 h-6 rounded-lg flex items-center justify-center hover:bg-secondary transition-colors" style={{ color: "var(--muted-foreground)" }}>
+                <button onClick={onClose} className="w-6 h-6 rounded-lg flex items-center justify-center hover:bg-secondary transition-colors" style={{ color: "var(--muted-foreground)" }}>
                   <X size={13} />
                 </button>
               </div>
@@ -1213,7 +1161,6 @@ function BridgeStudio({
           </motion.aside>
         )}
       </AnimatePresence>
-    </>
   );
 }
 
@@ -1272,8 +1219,8 @@ export function WorkspaceCanvas({ onAnnotate }: WorkspaceCanvasProps) {
   };
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden" style={{ position: "relative" }}>
-      <div className="flex-1 overflow-hidden relative">
+    <div className="flex-1 flex overflow-hidden" style={{ position: "relative" }}>
+      <div className="flex-1 overflow-hidden relative" style={{ minWidth: 0 }}>
         {/* Scrollable canvas */}
         <div
           className="absolute inset-0 overflow-auto"
@@ -1300,9 +1247,18 @@ export function WorkspaceCanvas({ onAnnotate }: WorkspaceCanvasProps) {
               {multiSelect && <FloatingToolbar count={5} onAction={handleMultiAction} />}
             </AnimatePresence>
 
-            {/* "Create from all sources" button */}
-            {!multiSelect && (
-              <div style={{ position: "absolute", top: 40, right: 48, zIndex: 10 }}>
+            {/* Canvas-level studio actions */}
+            <div className="flex items-center gap-2" style={{ position: "absolute", top: 40, right: 48, zIndex: 10 }}>
+              <motion.button
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                onClick={(e) => { e.stopPropagation(); setStudioOpen(true); setPanelState("default"); }}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border hover:bg-secondary transition-colors"
+                style={{ fontSize: "0.775rem", fontWeight: 600, color: studioOpen ? "#001F3F" : "var(--muted-foreground)", background: studioOpen ? "#DBE64C" : "var(--card)" }}
+              >
+                <Lightbulb size={12} />
+                Studio
+              </motion.button>
+              {!multiSelect && (
                 <motion.button
                   initial={{ opacity: 0 }} animate={{ opacity: 1 }}
                   onClick={(e) => { e.stopPropagation(); setMultiSelect(true); setSelectedId(null); setPanelState("default"); setStudioOpen(true); }}
@@ -1312,8 +1268,8 @@ export function WorkspaceCanvas({ onAnnotate }: WorkspaceCanvasProps) {
                   <Zap size={12} style={{ color: "#DBE64C" }} />
                   Create from all sources
                 </motion.button>
-              </div>
-            )}
+              )}
+            </div>
 
             {/* Source nodes */}
             <div onContextMenu={e => { e.preventDefault(); e.stopPropagation(); setCtxMenu({ kind: "source", x: e.clientX, y: e.clientY }); }}>
@@ -1361,7 +1317,7 @@ export function WorkspaceCanvas({ onAnnotate }: WorkspaceCanvasProps) {
         <div style={{ position: "absolute", top: 12, left: 12, zIndex: 15, pointerEvents: "none" }}>
           <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-border" style={{ background: "var(--card)", opacity: 0.88, boxShadow: "0 1px 6px rgba(0,31,63,0.06)" }}>
             <Lock size={10} style={{ color: "var(--muted-foreground)" }} />
-            <span style={{ fontSize: "0.65rem", fontWeight: 600, color: "var(--muted-foreground)" }}>Private workspace</span>
+            <span style={{ fontSize: "0.65rem", fontWeight: 600, color: "var(--muted-foreground)" }}>Private canvas</span>
           </div>
         </div>
 
@@ -1374,7 +1330,7 @@ export function WorkspaceCanvas({ onAnnotate }: WorkspaceCanvasProps) {
                 {(ctxMenu.kind === "source" ? [
                   ["Analyze source","Analyze changes","Ask Bridge"],
                   ["Create context task","Create audio explainer","Create video explainer","Create document"],
-                  ["Add note","Add comment","Ask owner","Open in Workspace"],
+                  ["Add note","Add comment","Ask owner","Open in Canvas"],
                   ["Add to main context","Open original"],
                 ] : ctxMenu.kind === "postit" ? [
                   ["Make question","Assign question","Create context task","Add to Map"],
@@ -1406,17 +1362,16 @@ export function WorkspaceCanvas({ onAnnotate }: WorkspaceCanvasProps) {
           </div>
         </div>
 
-        {/* Bridge Studio — absolute overlay on right edge */}
-        <BridgeStudio
-          open={studioOpen}
-          onToggle={() => setStudioOpen(o => !o)}
-          selectedId={selectedId}
-          panelState={panelState}
-          onPanelState={setPanelState}
-          onClose={() => { setStudioOpen(false); setSelectedId(null); setMultiSelect(false); }}
-          onAnnotate={onAnnotate}
-        />
       </div>
+      <BridgeStudio
+        open={studioOpen}
+        onToggle={() => setStudioOpen(o => !o)}
+        selectedId={selectedId}
+        panelState={panelState}
+        onPanelState={setPanelState}
+        onClose={() => { setStudioOpen(false); setSelectedId(null); setMultiSelect(false); }}
+        onAnnotate={onAnnotate}
+      />
     </div>
   );
 }
