@@ -1794,6 +1794,85 @@ function WaveformMini({ progress }: { progress: number }) {
   );
 }
 
+function SourcePopup({
+  sourceId,
+  onClose,
+  onOpenWorkspace,
+  onAnnotate,
+}: {
+  sourceId: string | null;
+  onClose: () => void;
+  onOpenWorkspace: () => void;
+  onAnnotate: (action: string) => void;
+}) {
+  const source = getSourceById(sourceId);
+  if (!source) return null;
+
+  const Icon = SOURCE_ICONS[source.type];
+
+  return (
+    <>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 z-40"
+        style={{ background: "rgba(0,31,63,0.18)", backdropFilter: "blur(6px)" }}
+        onClick={onClose}
+      />
+      <motion.div
+        initial={{ opacity: 0, scale: 0.96, y: 14 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.96, y: 8 }}
+        transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+        className="fixed left-1/2 top-1/2 z-50 flex w-[min(920px,calc(100vw-48px))] max-h-[min(760px,calc(100vh-56px))] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-2xl border border-border"
+        style={{ background: "var(--card)", boxShadow: "0 28px 80px rgba(0,31,63,0.24)" }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-start justify-between gap-4 border-b border-border px-5 py-4" style={{ background: "var(--sidebar)" }}>
+          <div className="flex min-w-0 items-start gap-3">
+            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl" style={{ background: source.color + "18" }}>
+              <Icon size={18} style={{ color: source.color }} />
+            </div>
+            <div className="min-w-0">
+              <p style={{ fontWeight: 850, fontSize: "1rem", lineHeight: 1.3 }}>{source.title}</p>
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                <TypeChip label={source.meta} color={source.color} />
+                {source.provider && <TypeChip label={source.provider} color="#5C6B5A" />}
+                {source.connectedStatus && (
+                  <TypeChip
+                    label={source.connectedStatus === "needs-analysis" ? "Needs analysis" : source.connectedStatus}
+                    color={source.connectedStatus === "changed" || source.connectedStatus === "needs-analysis" ? "#C0392B" : "#00804C"}
+                  />
+                )}
+              </div>
+              {source.lastUpdated && (
+                <p style={{ fontSize: "0.7rem", color: "var(--muted-foreground)", marginTop: 7 }}>
+                  Last updated {source.lastUpdated}{source.owner ? ` by ${source.owner}` : ""}
+                </p>
+              )}
+            </div>
+          </div>
+          <button onClick={onClose} className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg hover:bg-secondary transition-colors" style={{ color: "var(--muted-foreground)" }}>
+            <X size={15} />
+          </button>
+        </div>
+
+        <div className="flex flex-wrap gap-2 border-b border-border px-5 py-3">
+          <DrawerActionButton icon={ArrowUpRight} label="Open original" onClick={() => onAnnotate("Original source opened")} primary />
+          <DrawerActionButton icon={BookOpen} label="Open in Canvas" onClick={onOpenWorkspace} />
+          <DrawerActionButton icon={Lightbulb} label="Ask this source" onClick={() => onAnnotate("Ask Bridge — source scoped")} />
+          <DrawerActionButton icon={Zap} label="Analyze changes" onClick={() => onAnnotate("Analyzing source changes")} />
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-5 py-5">
+          <SourceDocumentPreview source={source} onAnnotate={onAnnotate} />
+        </div>
+      </motion.div>
+    </>
+  );
+}
+
 function RightPanel({
   cardId,
   sourceId,
@@ -2156,9 +2235,6 @@ function ContextWorkMode() {
         </div>
       </div>
 
-      <div className="absolute right-8 bottom-28 z-20">
-        <button onClick={() => setCreateTask("New task")} className="flex items-center gap-2 px-4 py-2.5 rounded-2xl border border-border transition-all hover:-translate-y-px" style={{ background: "#001F3F", color: "#DBE64C", boxShadow: "0 8px 28px rgba(0,31,63,0.18)", fontSize: "0.86rem", fontWeight: 800 }}><Plus size={14} />New context task</button>
-      </div>
       <AnimatePresence>{createTask !== null && <CreateTaskModal onClose={() => setCreateTask(null)} prefill={createTask} />}</AnimatePresence>
     </div>
   );
@@ -2515,6 +2591,7 @@ export function Canvas({ theme, onToggleTheme, onNavigate, canvasId }: Props) {
   const [leftOpen, setLeftOpen] = useState(true);
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
   const [selectedSourceId, setSelectedSourceId] = useState<string | null>(null);
+  const [sourcePopupId, setSourcePopupId] = useState<string | null>(null);
   const [rightOpen, setRightOpen] = useState(false);
   const [isEmpty, setIsEmpty] = useState(canvasId === "new");
   const [processingMsg, setProcessingMsg] = useState<string | null>(null);
@@ -2542,6 +2619,13 @@ export function Canvas({ theme, onToggleTheme, onNavigate, canvasId }: Props) {
     setSelectedSourceId(id);
     setSelectedCardId(null);
     setRightOpen(true);
+  };
+
+  const handleContentSourceOpen = (id: string) => {
+    setSourcePopupId(id);
+    setRightOpen(false);
+    setSelectedCardId(null);
+    setSelectedSourceId(null);
   };
 
   const handlePanelClose = () => {
@@ -2768,7 +2852,7 @@ export function Canvas({ theme, onToggleTheme, onNavigate, canvasId }: Props) {
         <ContentSourcesPanel
           open={leftOpen}
           onToggle={() => setLeftOpen((open) => !open)}
-          onSourceSelect={handleSourceSelect}
+          onSourceSelect={handleContentSourceOpen}
           isEmpty={isEmpty}
         />
 
@@ -2848,6 +2932,20 @@ export function Canvas({ theme, onToggleTheme, onNavigate, canvasId }: Props) {
           )}
         </AnimatePresence>
       </div>
+
+      <AnimatePresence>
+        {sourcePopupId && (
+          <SourcePopup
+            sourceId={sourcePopupId}
+            onClose={() => setSourcePopupId(null)}
+            onOpenWorkspace={() => {
+              setMode("workspace");
+              setSourcePopupId(null);
+            }}
+            onAnnotate={handleAnnotate}
+          />
+        )}
+      </AnimatePresence>
 
       {/* Toast notifications */}
       <div className="fixed bottom-24 right-6 flex flex-col gap-2 z-50 pointer-events-none">
