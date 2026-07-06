@@ -54,7 +54,7 @@ export function Onboarding({ onNavigate }: Props) {
               className="h-1 rounded-full transition-all duration-300"
               style={{
                 width: step === s ? 24 : 8,
-                background: step === s ? "#001F3F" : "var(--border)",
+                background: step === s ? "var(--ink)" : "var(--border)",
               }}
             />
           ))}
@@ -90,7 +90,7 @@ export function Onboarding({ onNavigate }: Props) {
                       onClick={() => setSelected(pref.id)}
                       className="flex items-start gap-3 p-4 rounded-xl border text-left transition-all"
                       style={{
-                        border: isSelected ? "1.5px solid #001F3F" : "1.5px solid var(--border)",
+                        border: isSelected ? "1.5px solid var(--ink)" : "1.5px solid var(--border)",
                         background: isSelected ? "var(--secondary)" : "var(--card)",
                         boxShadow: isSelected ? "0 0 0 3px rgba(219,230,76,0.3)" : "none",
                       }}
@@ -99,7 +99,7 @@ export function Onboarding({ onNavigate }: Props) {
                         className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5"
                         style={{
                           background: isSelected ? "#DBE64C" : "var(--muted)",
-                          color: isSelected ? "#001F3F" : "var(--muted-foreground)",
+                          color: isSelected ? "var(--foreground)" : "var(--muted-foreground)",
                         }}
                       >
                         <pref.icon size={15} />
@@ -117,7 +117,7 @@ export function Onboarding({ onNavigate }: Props) {
                 onClick={handlePrefNext}
                 disabled={!selected}
                 className="w-full py-2.5 rounded-xl mb-3 transition-all hover:opacity-90 disabled:opacity-40"
-                style={{ background: "#001F3F", color: "#F6F7ED", fontWeight: 600, fontSize: "0.9375rem" }}
+                style={{ background: "var(--primary)", color: "var(--primary-foreground)", fontWeight: 600, fontSize: "0.9375rem" }}
               >
                 Continue
                 <ArrowRight size={14} className="inline ml-2" />

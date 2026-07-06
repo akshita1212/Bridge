@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import type { Page, Theme } from "../App";
 import { WorkspaceCanvas } from "./WorkspaceCanvas";
+import { api, timeAgo, parseSummary, type BridgeState, type ApiSource, type MapCard } from "../lib/api";
 
 interface Props {
   theme: Theme;
@@ -103,6 +104,26 @@ const CW_QUESTIONS = [
   { title: "Is March 15 deadline still confirmed?",     linked: "Stakeholder Interview 08:42",         owner: "Aditi",    status: "Open",     confidence: "High" },
 ];
 
+type CwTask = { key: string; title: string; assignee: string; status: string; priority: string; due: string; linked: string; visibility: string };
+type CwQuestion = { title: string; linked: string; owner: string; status: string; confidence: string };
+
+function mapApiTask(t: import("../lib/api").ApiTask): CwTask {
+  return {
+    key: t.key,
+    title: t.title,
+    assignee: (t.assignee || "ME").slice(0, 2).toUpperCase(),
+    status: t.status,
+    priority: t.priority,
+    due: t.due ? t.due.slice(0, 10) : "—",
+    linked: t.linked || "This Bridge",
+    visibility: t.visibility || "Private",
+  };
+}
+
+function mapApiQuestion(q: import("../lib/api").ApiQuestion): CwQuestion {
+  return { title: q.title, linked: q.linked || "This Bridge", owner: q.owner || "You", status: q.status, confidence: "Medium" };
+}
+
 const CW_PEOPLE = [
   { initials: "AR", name: "Aditi Sharma",  role: "Product Manager", tasks: 3, review: 1, access: "Shared context",     color: "#1E488F" },
   { initials: "RM", name: "Rohan Mehta",   role: "Engineer",        tasks: 2, blocked: 1, access: "Selected notes only", color: "#00804C" },
@@ -115,18 +136,18 @@ const CW_CHANGES = [
 ];
 
 const CW_TIMELINE = [
-  { date: "Mar 8", label: "Source change detected", detail: "Design Brief changed and may affect sign-off ownership.", status: "Needs analysis", color: "#C0392B" },
+  { date: "Mar 8", label: "Source change detected", detail: "Design Brief changed and may affect sign-off ownership.", status: "Needs analysis", color: "#D4553F" },
   { date: "Mar 10", label: "Research synthesis checkpoint", detail: "Resolve 3 open questions before the handoff brief is shared.", status: "Upcoming", color: "#1E488F" },
-  { date: "Mar 12", label: "Decision owner confirmation", detail: "BRG-12 is blocked until Aditi confirms final approval owner.", status: "Blocked", color: "#C0392B" },
+  { date: "Mar 12", label: "Decision owner confirmation", detail: "BRG-12 is blocked until Aditi confirms final approval owner.", status: "Blocked", color: "#D4553F" },
   { date: "Mar 15", label: "Gateway redesign milestone", detail: "Rohan delivers staged disclosure update for review.", status: "On track", color: "#00804C" },
-  { date: "Mar 20", label: "Alignment review", detail: "Compare NNG article with internal framework and add approved guidance to main context.", status: "Review", color: "#4A5200" },
+  { date: "Mar 20", label: "Alignment review", detail: "Compare NNG article with internal framework and add approved guidance to main context.", status: "Review", color: "#8A9300" },
 ];
 
 const CW_TRACKING = [
   { label: "Project progress", value: "42%", helper: "2 of 5 milestones completed", color: "#00804C" },
-  { label: "Blocked work", value: "2", helper: "Needs owner or source clarification", color: "#C0392B" },
+  { label: "Blocked work", value: "2", helper: "Needs owner or source clarification", color: "#D4553F" },
   { label: "Context coverage", value: "71%", helper: "5 of 7 Map cards have source evidence", color: "#1E488F" },
-  { label: "Review load", value: "1", helper: "Aditi has the next review handoff", color: "#4A5200" },
+  { label: "Review load", value: "1", helper: "Aditi has the next review handoff", color: "#8A9300" },
 ];
 const MAP_TEMPLATES = ["Understanding Map","Project Timeline","Source Map","Decision Map","Work Map","Custom"];
 
@@ -189,13 +210,15 @@ const MAP_CARDS: InsightCard[] = [
   },
 ];
 
+/* `color` stays hex (it gets alpha-concatenated for borders/shadows);
+   `ink` is the theme-aware color used for icon + label text. */
 const CARD_CONFIG = {
-  main: { label: "Main Idea", color: "#001F3F", bg: "rgba(0,31,63,0.06)", icon: Lightbulb },
-  "must-know": { label: "Must Know", color: "#00804C", bg: "rgba(0,128,76,0.07)", icon: Star },
-  question: { label: "Open Question", color: "#1E488F", bg: "rgba(30,72,143,0.06)", icon: HelpCircle },
-  decision: { label: "Decision", color: "#5C6B5A", bg: "rgba(92,107,90,0.07)", icon: Target },
-  risk: { label: "Risk", color: "#C0392B", bg: "rgba(192,57,43,0.07)", icon: AlertTriangle },
-  action: { label: "Next Action", color: "#DBE64C", bg: "rgba(219,230,76,0.2)", icon: ArrowRight, darkText: true },
+  main: { label: "Main Idea", color: "#001F3F", ink: "var(--ink)", bg: "var(--status-neutral-soft)", icon: Lightbulb },
+  "must-know": { label: "Must Know", color: "#00804C", ink: "var(--status-positive)", bg: "var(--status-positive-soft)", icon: Star },
+  question: { label: "Open Question", color: "#1E488F", ink: "var(--status-info)", bg: "var(--status-info-soft)", icon: HelpCircle },
+  decision: { label: "Decision", color: "#5C6B5A", ink: "var(--status-neutral)", bg: "var(--status-neutral-soft)", icon: Target },
+  risk: { label: "Risk", color: "#C0392B", ink: "var(--status-danger)", bg: "var(--status-danger-soft)", icon: AlertTriangle },
+  action: { label: "Next Action", color: "#DBE64C", ink: "var(--accent-strong)", bg: "var(--status-warn-soft)", icon: ArrowRight, darkText: true },
 };
 
 const PROCESSING_MSGS = ["Updating…", "Map refreshed", "3 gaps found", "Reading new source…", "Timeline updated"];
@@ -335,14 +358,14 @@ function InsightCardItem({
     >
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1.5">
-          <Icon size={12} style={{ color: cfg.color }} />
+          <Icon size={12} style={{ color: cfg.ink }} />
           <span
             style={{
               fontSize: "0.67rem",
               fontWeight: 700,
               textTransform: "uppercase",
               letterSpacing: "0.06em",
-              color: cfg.color,
+              color: cfg.ink,
             }}
           >
             {cfg.label}
@@ -352,7 +375,7 @@ function InsightCardItem({
           <span style={{ fontSize: "0.62rem", color: "var(--muted-foreground)", fontStyle: "italic" }}>inferred</span>
         )}
         {card.confidence === "needs-info" && (
-          <span style={{ fontSize: "0.62rem", color: "#C0392B" }}>needs info</span>
+          <span style={{ fontSize: "0.62rem", color: "var(--status-danger)" }}>needs info</span>
         )}
       </div>
 
@@ -418,7 +441,7 @@ function ConnectSourceModal({ onClose }: { onClose: () => void }) {
   return (
     <>
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-40" style={{ background: "rgba(0,0,0,0.25)", backdropFilter: "blur(4px)" }} onClick={onClose} />
-      <motion.div initial={{ opacity: 0, scale: 0.96, y: 8 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.96 }} transition={{ duration: 0.2, ease: [0.16,1,0.3,1] }} className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-md rounded-2xl border border-border overflow-hidden" style={{ background: "var(--card)", boxShadow: "0 24px 64px rgba(0,31,63,0.18)" }}>
+      <motion.div initial={{ opacity: 0, scale: 0.96, y: 8 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.96 }} transition={{ duration: 0.2, ease: [0.16,1,0.3,1] }} className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-md rounded-2xl border border-border overflow-hidden" style={{ background: "var(--card)", boxShadow: "var(--shadow-xl)" }}>
         <div className="flex items-center justify-between px-5 py-4 border-b border-border">
           <p style={{ fontWeight: 700, fontSize: "1rem" }}>Connect a source</p>
           <button onClick={onClose} className="hover:bg-secondary rounded-lg p-1.5 transition-colors" style={{ color: "var(--muted-foreground)" }}><X size={15} /></button>
@@ -438,8 +461,8 @@ function ConnectSourceModal({ onClose }: { onClose: () => void }) {
             <p style={{ fontSize: "0.72rem", fontWeight: 700, color: "var(--muted-foreground)", marginBottom: 8 }}>Analysis setting</p>
             {["Analyze now","Only analyze when I ask","Watch for changes","Require approval before adding to context"].map((opt, i) => (
               <label key={opt} className="flex items-center gap-2.5 py-1.5 cursor-pointer">
-                <div className="w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center flex-shrink-0" style={{ borderColor: i === 0 ? "#001F3F" : "var(--border)" }}>
-                  {i === 0 && <div className="w-1.5 h-1.5 rounded-full" style={{ background: "#001F3F" }} />}
+                <div className="w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center flex-shrink-0" style={{ borderColor: i === 0 ? "var(--ink)" : "var(--border)" }}>
+                  {i === 0 && <div className="w-1.5 h-1.5 rounded-full" style={{ background: "var(--btn-brand-bg)" }} />}
                 </div>
                 <span style={{ fontSize: "0.78rem" }}>{opt}</span>
               </label>
@@ -453,35 +476,64 @@ function ConnectSourceModal({ onClose }: { onClose: () => void }) {
 
 // ─── Content Sources Panel ────────────────────────────────────────────────────
 
+/** Map an API source to the display shape the panel renders. */
+const LIVE_TYPE_COLORS: Record<string, string> = {
+  pdf: "#1E488F", doc: "#1E488F", text: "#5C7AA6", image: "#DBE64C",
+  audio: "#74C365", video: "#00804C", link: "#5C6B5A", note: "#8A9300",
+};
+
+function liveToConnected(s: ApiSource): ConnectedSource {
+  return {
+    id: s.id,
+    title: s.title,
+    provider: s.provider === "upload" ? "Upload" : s.provider === "link" ? "Link" : "Note",
+    color: LIVE_TYPE_COLORS[s.type] || "#5C7AA6",
+    type: s.type === "text" || s.type === "doc" ? "pdf" : s.type === "note" ? "note" : (s.type as Source["type"]),
+    meta: s.meta,
+    status: s.status,
+    lastUpdated: timeAgo(s.created_at),
+    owner: "ME",
+  };
+}
+
 function ContentSourcesPanel({
   open,
   onToggle,
   onSourceSelect,
   isEmpty,
+  liveSources,
+  onAnalyzeSource,
+  onDeleteSource,
 }: {
   open: boolean;
   onToggle: () => void;
   onSourceSelect: (id: string) => void;
   isEmpty: boolean;
+  liveSources?: ApiSource[];
+  onAnalyzeSource?: (id: string) => Promise<void> | void;
+  onDeleteSource?: (id: string) => Promise<void> | void;
 }) {
   const [ctxMenu, setCtxMenu] = useState<{ id: string; x: number; y: number } | null>(null);
   const [analyzing, setAnalyzing] = useState<string | null>(null);
   const [showConnect, setShowConnect] = useState(false);
 
+  const isLivePanel = liveSources !== undefined;
+  const displaySources = isLivePanel ? liveSources.map(liveToConnected) : CONNECTED_SOURCES;
+
   function StatusChip({ status, id }: { status: ConnectedSource["status"]; id: string }) {
     if (analyzing === id) return (
-      <span className="flex items-center gap-1" style={{ fontSize: "0.58rem", fontWeight: 600, color: "#1E488F", background: "rgba(30,72,143,0.1)", padding: "1px 6px", borderRadius: 99 }}>
+      <span className="flex items-center gap-1" style={{ fontSize: "0.58rem", fontWeight: 600, color: "var(--status-info)", background: "var(--status-info-soft)", padding: "1px 6px", borderRadius: 99 }}>
         <span className="w-3 h-3 border border-current border-t-transparent rounded-full animate-spin inline-block" style={{ flexShrink: 0 }} />Analyzing
       </span>
     );
     if (status === "live") return (
-      <span className="flex items-center gap-1" style={{ fontSize: "0.58rem", fontWeight: 700, color: "#00804C", background: "rgba(0,128,76,0.1)", padding: "1px 6px", borderRadius: 99 }}>
+      <span className="flex items-center gap-1" style={{ fontSize: "0.58rem", fontWeight: 700, color: "var(--status-positive)", background: "var(--status-positive-soft)", padding: "1px 6px", borderRadius: 99 }}>
         <span className="w-1.5 h-1.5 rounded-full animate-pulse inline-block flex-shrink-0" style={{ background: "#00804C" }} />Live
       </span>
     );
-    if (status === "changed") return <span style={{ fontSize: "0.58rem", fontWeight: 700, color: "#C0392B", background: "rgba(192,57,43,0.1)", padding: "1px 6px", borderRadius: 99 }}>Changed</span>;
+    if (status === "changed") return <span style={{ fontSize: "0.58rem", fontWeight: 700, color: "var(--status-danger)", background: "var(--status-danger-soft)", padding: "1px 6px", borderRadius: 99 }}>Changed</span>;
     if (status === "needs-analysis") return <span style={{ fontSize: "0.58rem", fontWeight: 600, color: "var(--muted-foreground)", background: "var(--secondary)", padding: "1px 6px", borderRadius: 99, border: "1px solid var(--border)" }}>Needs analysis</span>;
-    return <span style={{ fontSize: "0.58rem", fontWeight: 600, color: "#5C6B5A", background: "var(--secondary)", padding: "1px 6px", borderRadius: 99 }}>Synced</span>;
+    return <span style={{ fontSize: "0.58rem", fontWeight: 600, color: "var(--status-neutral)", background: "var(--secondary)", padding: "1px 6px", borderRadius: 99 }}>Synced</span>;
   }
 
   const providerIcon = (p: string): React.ElementType =>
@@ -527,7 +579,7 @@ function ContentSourcesPanel({
                 </div>
               ) : (
                 <div className="flex flex-col gap-2.5">
-                  {CONNECTED_SOURCES.map(src => {
+                  {displaySources.map(src => {
                     const Icon = providerIcon(src.provider);
                     return (
                       <div
@@ -549,15 +601,24 @@ function ContentSourcesPanel({
                               <p style={{ fontSize: "0.64rem", color: "var(--muted-foreground)", marginTop: 2 }}>{src.provider}</p>
                             </div>
                           </div>
-                          <div className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: "#001F3F", fontSize: "0.52rem", fontWeight: 800, color: "#fff" }}>{src.owner}</div>
+                          <div className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: "var(--ink)", fontSize: "0.52rem", fontWeight: 800, color: "var(--ink-inverse)" }}>{src.owner}</div>
                         </div>
                         <div className="flex items-center justify-between gap-2">
                           <StatusChip status={src.status} id={src.id} />
                           <span style={{ fontSize: "0.6rem", color: "var(--muted-foreground)", whiteSpace: "nowrap" }}>{src.lastUpdated}</span>
                         </div>
-                        {src.status === "changed" && analyzing !== src.id && (
-                          <button onClick={e => { e.stopPropagation(); setAnalyzing(src.id); setTimeout(() => setAnalyzing(null), 2400); }} className="w-full px-2 py-1.5 rounded-lg hover:opacity-90 transition-all" style={{ fontSize: "0.68rem", fontWeight: 800, background: "#001F3F", color: "#DBE64C", textAlign: "center" }}>
-                            Analyze changes
+                        {(src.status === "changed" || (isLivePanel && src.status === "needs-analysis")) && analyzing !== src.id && (
+                          <button
+                            onClick={async e => {
+                              e.stopPropagation();
+                              setAnalyzing(src.id);
+                              if (onAnalyzeSource) { await onAnalyzeSource(src.id); setAnalyzing(null); }
+                              else setTimeout(() => setAnalyzing(null), 2400);
+                            }}
+                            className="w-full px-2 py-1.5 rounded-lg hover:opacity-90 transition-all"
+                            style={{ fontSize: "0.68rem", fontWeight: 800, background: "var(--btn-brand-bg)", color: "var(--btn-brand-fg)", textAlign: "center" }}
+                          >
+                            {src.status === "changed" ? "Analyze changes" : "Analyze source"}
                           </button>
                         )}
                       </div>
@@ -591,10 +652,26 @@ function ContentSourcesPanel({
           <>
             <div className="fixed inset-0 z-40" onClick={() => setCtxMenu(null)} />
             <motion.div initial={{ opacity: 0, scale: 0.97, y: 4 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.97 }} transition={{ duration: 0.12 }} className="fixed z-50 rounded-xl border border-border overflow-hidden" style={{ left: ctxMenu.x, top: ctxMenu.y, background: "var(--card)", boxShadow: "0 8px 32px rgba(0,31,63,0.14)", minWidth: 200 }}>
-              {[["Analyze changes","Open source","Open in Canvas","Add to Map","Add to main context","Keep as reference"],["Assign follow-up","Add comment","Mark private"],["View version history","Disconnect source"]].map((grp, gi) => (
+              {(isLivePanel
+                ? [["Open source", "Analyze source"], ["Remove source"]]
+                : [["Analyze changes","Open source","Open in Canvas","Add to Map","Add to main context","Keep as reference"],["Assign follow-up","Add comment","Mark private"],["View version history","Disconnect source"]]
+              ).map((grp, gi) => (
                 <div key={gi} className={gi > 0 ? "border-t border-border" : ""}>
                   {grp.map(item => (
-                    <button key={item} onClick={() => setCtxMenu(null)} className="w-full flex items-center px-4 py-2 hover:bg-secondary transition-colors text-left" style={{ fontSize: "0.8rem", fontWeight: 500, color: item === "Disconnect source" ? "#C0392B" : "var(--foreground)" }}>{item}</button>
+                    <button
+                      key={item}
+                      onClick={() => {
+                        const id = ctxMenu.id;
+                        setCtxMenu(null);
+                        if (item === "Open source" && isLivePanel) onSourceSelect(id);
+                        if (item === "Analyze source") onAnalyzeSource?.(id);
+                        if (item === "Remove source") onDeleteSource?.(id);
+                      }}
+                      className="w-full flex items-center px-4 py-2 hover:bg-secondary transition-colors text-left"
+                      style={{ fontSize: "0.8rem", fontWeight: 500, color: item === "Disconnect source" || item === "Remove source" ? "var(--status-danger)" : "var(--foreground)" }}
+                    >
+                      {item}
+                    </button>
                   ))}
                 </div>
               ))}
@@ -610,17 +687,31 @@ function ContentSourcesPanel({
 
 // ─── Create Task Modal ────────────────────────────────────────────────────────
 
-function CreateTaskModal({ onClose, prefill }: { onClose: () => void; prefill?: string }) {
+function CreateTaskModal({ onClose, prefill, onCreate }: {
+  onClose: () => void;
+  prefill?: string;
+  onCreate?: (task: { title: string; assignee: string; status: string; priority: string; visibility: string; linked?: string }) => void;
+}) {
   const [title, setTitle] = useState(prefill || "");
   const [assignee, setAssignee] = useState("AR");
   const [status, setStatus] = useState("To do");
   const [priority, setPriority] = useState("Medium");
   const [visibility, setVisibility] = useState("Share with assignee");
 
+  const submit = () => {
+    if (onCreate) {
+      if (!title.trim()) return;
+      onCreate({ title: title.trim(), assignee: assignee.split(" ")[0], status, priority, visibility, linked: prefill });
+      onClose();
+      return;
+    }
+    onClose();
+  };
+
   return (
     <>
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-40" style={{ background: "rgba(0,0,0,0.25)", backdropFilter: "blur(4px)" }} onClick={onClose} />
-      <motion.div initial={{ opacity: 0, scale: 0.96, y: 8 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.96 }} transition={{ duration: 0.2, ease: [0.16,1,0.3,1] }} className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-md rounded-2xl border border-border overflow-hidden" style={{ background: "var(--card)", boxShadow: "0 24px 64px rgba(0,31,63,0.18)" }}>
+      <motion.div initial={{ opacity: 0, scale: 0.96, y: 8 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.96 }} transition={{ duration: 0.2, ease: [0.16,1,0.3,1] }} className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-md rounded-2xl border border-border overflow-hidden" style={{ background: "var(--card)", boxShadow: "var(--shadow-xl)" }}>
         <div className="flex items-center justify-between px-5 py-4 border-b border-border">
           <p style={{ fontWeight: 700, fontSize: "0.95rem" }}>Create context task</p>
           <button onClick={onClose} className="hover:bg-secondary rounded-lg p-1.5 transition-colors" style={{ color: "var(--muted-foreground)" }}><X size={15} /></button>
@@ -648,7 +739,7 @@ function CreateTaskModal({ onClose, prefill }: { onClose: () => void; prefill?: 
             <div>
               <label style={{ fontSize: "0.72rem", fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em", display: "block", marginBottom: 6 }}>Linked context</label>
               <div className="flex items-center gap-2 px-3 py-2 rounded-xl border border-border" style={{ background: "var(--secondary)" }}>
-                <GitBranch size={12} style={{ color: "#1E488F", flexShrink: 0 }} />
+                <GitBranch size={12} style={{ color: "var(--status-info)", flexShrink: 0 }} />
                 <span style={{ fontSize: "0.8rem", color: "var(--foreground)" }}>{prefill}</span>
               </div>
             </div>
@@ -658,15 +749,15 @@ function CreateTaskModal({ onClose, prefill }: { onClose: () => void; prefill?: 
             <div className="flex flex-col gap-1.5">
               {["Private","Share with assignee","Share with group","Add to main Bridge context"].map(opt => (
                 <label key={opt} className="flex items-center gap-2.5 cursor-pointer">
-                  <div className="w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center flex-shrink-0" style={{ borderColor: visibility === opt ? "#001F3F" : "var(--border)" }}>
-                    {visibility === opt && <div className="w-1.5 h-1.5 rounded-full" style={{ background: "#001F3F" }} />}
+                  <div className="w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center flex-shrink-0" style={{ borderColor: visibility === opt ? "var(--ink)" : "var(--border)" }}>
+                    {visibility === opt && <div className="w-1.5 h-1.5 rounded-full" style={{ background: "var(--btn-brand-bg)" }} />}
                   </div>
                   <span style={{ fontSize: "0.8rem" }} onClick={() => setVisibility(opt)}>{opt}</span>
                 </label>
               ))}
             </div>
           </div>
-          <button onClick={onClose} className="w-full py-2.5 rounded-xl transition-all hover:opacity-90" style={{ background: "#001F3F", color: "#DBE64C", fontSize: "0.9rem", fontWeight: 700 }}>
+          <button onClick={submit} className="w-full py-2.5 rounded-xl transition-all hover:opacity-90" style={{ background: "var(--btn-brand-bg)", color: "var(--btn-brand-fg)", fontSize: "0.9rem", fontWeight: 700 }}>
             Create task
           </button>
         </div>
@@ -677,22 +768,25 @@ function CreateTaskModal({ onClose, prefill }: { onClose: () => void; prefill?: 
 
 // ─── Context Work Drawer ──────────────────────────────────────────────────────
 
-function ContextWorkDrawer({ onClose, initialTab = "Tasks" }: { onClose: () => void; initialTab?: string }) {
+function ContextWorkDrawer({ onClose, initialTab = "Tasks", liveTasks, liveQuestions, onCreateTask }: { onClose: () => void; initialTab?: string; liveTasks?: CwTask[]; liveQuestions?: CwQuestion[]; onCreateTask?: (task: { title: string; assignee: string; status: string; priority: string; visibility: string; linked?: string }) => void }) {
   const [tab, setTab] = useState(initialTab);
   const [createTask, setCreateTask] = useState<string | null>(null);
   const [selectedTask, setSelectedTask] = useState<string | null>(null);
   const [statusOpen, setStatusOpen] = useState<string | null>(null);
 
   const statusColor = (s: string) => {
-    if (s === "Blocked") return { bg: "rgba(192,57,43,0.12)", color: "#C0392B" };
-    if (s === "In progress") return { bg: "rgba(0,128,76,0.12)", color: "#00804C" };
-    if (s === "Needs review") return { bg: "rgba(219,230,76,0.25)", color: "#4A5200" };
-    if (s === "Done") return { bg: "rgba(92,107,90,0.12)", color: "#5C6B5A" };
+    if (s === "Blocked") return { bg: "var(--status-danger-soft)", color: "var(--status-danger)" };
+    if (s === "In progress") return { bg: "var(--status-positive-soft)", color: "#00804C" };
+    if (s === "Needs review") return { bg: "var(--status-warn-soft)", color: "var(--accent-strong)" };
+    if (s === "Done") return { bg: "var(--status-neutral-soft)", color: "var(--status-neutral)" };
     return { bg: "var(--secondary)", color: "var(--muted-foreground)" };
   };
   const priorityColor = (p: string) => p === "Critical" || p === "High" ? "#C0392B" : p === "Medium" ? "#DBE64C" : "#5C6B5A";
 
-  const tabs = ["Tasks","Questions","People","Changes"];
+  const isLiveDrawer = liveTasks !== undefined;
+  const taskList = liveTasks ?? CW_TASKS;
+  const questionList = liveQuestions ?? CW_QUESTIONS;
+  const tabs = isLiveDrawer ? ["Tasks","Questions"] : ["Tasks","Questions","People","Changes"];
 
   return (
     <>
@@ -721,7 +815,7 @@ function ContextWorkDrawer({ onClose, initialTab = "Tasks" }: { onClose: () => v
         {/* Tabs */}
         <div className="flex items-center border-b border-border flex-shrink-0" style={{ paddingLeft: 20, paddingRight: 20 }}>
           {tabs.map(t => (
-            <button key={t} onClick={() => setTab(t)} className="py-2.5 px-1 mr-4 transition-colors" style={{ fontSize: "0.78rem", fontWeight: tab === t ? 700 : 400, color: tab === t ? "var(--foreground)" : "var(--muted-foreground)", borderBottom: tab === t ? "2px solid #001F3F" : "2px solid transparent" }}>
+            <button key={t} onClick={() => setTab(t)} className="py-2.5 px-1 mr-4 transition-colors" style={{ fontSize: "0.78rem", fontWeight: tab === t ? 700 : 400, color: tab === t ? "var(--foreground)" : "var(--muted-foreground)", borderBottom: tab === t ? "2px solid var(--ink)" : "2px solid transparent" }}>
               {t}
             </button>
           ))}
@@ -730,7 +824,7 @@ function ContextWorkDrawer({ onClose, initialTab = "Tasks" }: { onClose: () => v
         <div className="flex-1 overflow-y-auto px-5 py-4 flex flex-col gap-3">
 
           {/* ── TASKS ── */}
-          {tab === "Tasks" && CW_TASKS.map(task => {
+          {tab === "Tasks" && taskList.map(task => {
             const sc = statusColor(task.status);
             const isSelected = selectedTask === task.key;
             return (
@@ -757,10 +851,10 @@ function ContextWorkDrawer({ onClose, initialTab = "Tasks" }: { onClose: () => v
                   <p style={{ fontSize: "0.82rem", fontWeight: 600, lineHeight: 1.35, marginBottom: 8 }}>{task.title}</p>
                   <div className="flex items-center gap-2 flex-wrap">
                     <div className="flex items-center gap-1">
-                      <div className="w-4 h-4 rounded-full flex items-center justify-center" style={{ background: "#001F3F", fontSize: "0.48rem", fontWeight: 700, color: "#fff" }}>{task.assignee}</div>
+                      <div className="w-4 h-4 rounded-full flex items-center justify-center" style={{ background: "var(--ink)", fontSize: "0.48rem", fontWeight: 700, color: "var(--ink-inverse)" }}>{task.assignee}</div>
                     </div>
                     <span style={{ fontSize: "0.62rem", color: "var(--muted-foreground)" }}>Due {task.due}</span>
-                    <span style={{ fontSize: "0.62rem", padding: "1px 6px", borderRadius: 4, background: "rgba(30,72,143,0.08)", color: "#1E488F", border: "1px solid rgba(30,72,143,0.18)" }}>
+                    <span style={{ fontSize: "0.62rem", padding: "1px 6px", borderRadius: 4, background: "var(--status-info-soft)", color: "var(--status-info)", border: "1px solid rgba(30,72,143,0.18)" }}>
                       {task.linked.length > 28 ? task.linked.slice(0,27)+"…" : task.linked}
                     </span>
                   </div>
@@ -786,17 +880,17 @@ function ContextWorkDrawer({ onClose, initialTab = "Tasks" }: { onClose: () => v
           })}
 
           {/* ── QUESTIONS ── */}
-          {tab === "Questions" && CW_QUESTIONS.map(q => (
+          {tab === "Questions" && questionList.map(q => (
             <div key={q.title} className="rounded-xl border border-border p-3" style={{ background: "var(--background)" }}>
               <div className="flex items-center justify-between gap-2 mb-2">
-                <span style={{ fontSize: "0.62rem", fontWeight: 700, padding: "1px 6px", borderRadius: 4, background: q.status === "Open" ? "rgba(192,57,43,0.1)" : "rgba(0,128,76,0.1)", color: q.status === "Open" ? "#C0392B" : "#00804C" }}>{q.status}</span>
+                <span style={{ fontSize: "0.62rem", fontWeight: 700, padding: "1px 6px", borderRadius: 4, background: q.status === "Open" ? "var(--status-danger-soft)" : "var(--status-positive-soft)", color: q.status === "Open" ? "#C0392B" : "#00804C" }}>{q.status}</span>
                 <span style={{ fontSize: "0.62rem", color: "var(--muted-foreground)" }}>Confidence: {q.confidence}</span>
               </div>
               <p style={{ fontSize: "0.82rem", fontWeight: 600, lineHeight: 1.4, marginBottom: 6 }}>{q.title}</p>
               <p style={{ fontSize: "0.68rem", color: "var(--muted-foreground)", marginBottom: 8 }}>{q.linked}</p>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5">
-                  <div className="w-4 h-4 rounded-full flex items-center justify-center" style={{ background: "#001F3F", fontSize: "0.48rem", fontWeight: 700, color: "#fff" }}>{q.owner.slice(0,2).toUpperCase()}</div>
+                  <div className="w-4 h-4 rounded-full flex items-center justify-center" style={{ background: "var(--ink)", fontSize: "0.48rem", fontWeight: 700, color: "var(--ink-inverse)" }}>{q.owner.slice(0,2).toUpperCase()}</div>
                   <span style={{ fontSize: "0.68rem", color: "var(--muted-foreground)" }}>{q.owner}</span>
                 </div>
                 <div className="flex gap-1">
@@ -820,9 +914,9 @@ function ContextWorkDrawer({ onClose, initialTab = "Tasks" }: { onClose: () => v
                 <span style={{ marginLeft: "auto", fontSize: "0.6rem", fontWeight: 600, padding: "2px 7px", borderRadius: 99, background: "var(--secondary)", color: "var(--muted-foreground)", border: "1px solid var(--border)" }}>{person.access}</span>
               </div>
               <div className="flex flex-wrap gap-1.5 mb-3">
-                {person.tasks && <span style={{ fontSize: "0.65rem", fontWeight: 600, color: "#5C6B5A", background: "rgba(92,107,90,0.1)", padding: "1px 7px", borderRadius: 99 }}>{person.tasks} tasks</span>}
-                {person.review && <span style={{ fontSize: "0.65rem", fontWeight: 600, color: "#4A5200", background: "rgba(219,230,76,0.2)", padding: "1px 7px", borderRadius: 99 }}>{person.review} review</span>}
-                {person.blocked && <span style={{ fontSize: "0.65rem", fontWeight: 600, color: "#C0392B", background: "rgba(192,57,43,0.1)", padding: "1px 7px", borderRadius: 99 }}>{person.blocked} blocked</span>}
+                {person.tasks && <span style={{ fontSize: "0.65rem", fontWeight: 600, color: "var(--status-neutral)", background: "var(--status-neutral-soft)", padding: "1px 7px", borderRadius: 99 }}>{person.tasks} tasks</span>}
+                {person.review && <span style={{ fontSize: "0.65rem", fontWeight: 600, color: "var(--accent-strong)", background: "var(--status-warn-soft)", padding: "1px 7px", borderRadius: 99 }}>{person.review} review</span>}
+                {person.blocked && <span style={{ fontSize: "0.65rem", fontWeight: 600, color: "var(--status-danger)", background: "var(--status-danger-soft)", padding: "1px 7px", borderRadius: 99 }}>{person.blocked} blocked</span>}
               </div>
               <div className="flex gap-1">
                 {["View context","Assign task","Share context"].map(a => (
@@ -840,7 +934,7 @@ function ContextWorkDrawer({ onClose, initialTab = "Tasks" }: { onClose: () => v
                   <p style={{ fontSize: "0.82rem", fontWeight: 600, lineHeight: 1.3 }}>{ch.file}</p>
                   <p style={{ fontSize: "0.65rem", color: "var(--muted-foreground)" }}>{ch.provider} · {ch.ago} · by {ch.by}</p>
                 </div>
-                <span style={{ fontSize: "0.6rem", fontWeight: 700, padding: "2px 7px", borderRadius: 99, background: ch.status === "Needs analysis" ? "rgba(192,57,43,0.1)" : "rgba(219,230,76,0.2)", color: ch.status === "Needs analysis" ? "#C0392B" : "#4A5200", flexShrink: 0 }}>{ch.status}</span>
+                <span style={{ fontSize: "0.6rem", fontWeight: 700, padding: "2px 7px", borderRadius: 99, background: ch.status === "Needs analysis" ? "var(--status-danger-soft)" : "var(--status-warn-soft)", color: ch.status === "Needs analysis" ? "#C0392B" : "#4A5200", flexShrink: 0 }}>{ch.status}</span>
               </div>
               <div className="flex flex-col gap-1 mb-3">
                 {ch.affected.map(a => (
@@ -852,7 +946,7 @@ function ContextWorkDrawer({ onClose, initialTab = "Tasks" }: { onClose: () => v
               </div>
               <div className="flex gap-1">
                 {["Analyze changes","Create task","Ignore"].map(a => (
-                  <button key={a} onClick={a === "Create task" ? () => setCreateTask(`Change: ${ch.file}`) : undefined} className="px-2 py-1 rounded-lg border border-border hover:bg-secondary transition-colors" style={{ fontSize: "0.65rem", fontWeight: a === "Analyze changes" ? 700 : 500, background: a === "Analyze changes" ? "#001F3F" : "transparent", color: a === "Analyze changes" ? "#DBE64C" : "var(--muted-foreground)", borderColor: a === "Analyze changes" ? "#001F3F" : "var(--border)" }}>{a}</button>
+                  <button key={a} onClick={a === "Create task" ? () => setCreateTask(`Change: ${ch.file}`) : undefined} className="px-2 py-1 rounded-lg border border-border hover:bg-secondary transition-colors" style={{ fontSize: "0.65rem", fontWeight: a === "Analyze changes" ? 700 : 500, background: a === "Analyze changes" ? "var(--btn-brand-bg)" : "transparent", color: a === "Analyze changes" ? "var(--btn-brand-fg)" : "var(--muted-foreground)", borderColor: a === "Analyze changes" ? "var(--btn-brand-bg)" : "var(--border)" }}>{a}</button>
                 ))}
               </div>
             </div>
@@ -861,23 +955,30 @@ function ContextWorkDrawer({ onClose, initialTab = "Tasks" }: { onClose: () => v
         </div>
       </motion.aside>
 
-      <AnimatePresence>{createTask !== null && <CreateTaskModal onClose={() => setCreateTask(null)} prefill={createTask} />}</AnimatePresence>
+      <AnimatePresence>{createTask !== null && <CreateTaskModal onClose={() => setCreateTask(null)} prefill={createTask} onCreate={onCreateTask} />}</AnimatePresence>
     </>
   );
 }
 
 // ─── Context Work Strip ───────────────────────────────────────────────────────
 
-function ContextWorkStrip() {
+function ContextWorkStrip({ counts, liveTasks, liveQuestions, onCreateTask }: { counts?: { tasks: number; questions: number }; liveTasks?: CwTask[]; liveQuestions?: CwQuestion[]; onCreateTask?: (task: { title: string; assignee: string; status: string; priority: string; visibility: string; linked?: string }) => void }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerTab, setDrawerTab] = useState("Tasks");
+
+  const chips = counts
+    ? [
+        { icon: Target, label: `${counts.tasks} Task${counts.tasks === 1 ? "" : "s"}`, color: "#5C6B5A" },
+        { icon: HelpCircle, label: `${counts.questions} Question${counts.questions === 1 ? "" : "s"}`, color: "#1E488F" },
+      ]
+    : CW_CHIPS;
 
   return (
     <div className="flex-shrink-0 border-b border-border px-8 py-2.5" style={{ background: "var(--card)" }}>
       <div className="flex items-center gap-2 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
         <span style={{ fontSize: "0.65rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--muted-foreground)", flexShrink: 0 }}>Context Work</span>
         <div className="w-px h-3.5 bg-border flex-shrink-0" />
-        {CW_CHIPS.map(chip => {
+        {chips.map(chip => {
           const Icon = chip.icon;
           return (
             <button
@@ -896,7 +997,7 @@ function ContextWorkStrip() {
         </button>
       </div>
 
-      <AnimatePresence>{drawerOpen && <ContextWorkDrawer onClose={() => setDrawerOpen(false)} initialTab={drawerTab} />}</AnimatePresence>
+      <AnimatePresence>{drawerOpen && <ContextWorkDrawer onClose={() => setDrawerOpen(false)} initialTab={drawerTab} liveTasks={liveTasks} liveQuestions={liveQuestions} onCreateTask={onCreateTask} />}</AnimatePresence>
     </div>
   );
 }
@@ -906,23 +1007,34 @@ function ContextWorkStrip() {
 function MapMode({
   onCardSelect,
   onSourceSelect,
+  cards,
+  workCounts,
+  liveTasks,
+  liveQuestions,
+  onCreateTask,
 }: {
   onCardSelect: (id: string) => void;
   onSourceSelect: (id: string) => void;
+  cards?: InsightCard[];
+  workCounts?: { tasks: number; questions: number };
+  liveTasks?: CwTask[];
+  liveQuestions?: CwQuestion[];
+  onCreateTask?: (task: { title: string; assignee: string; status: string; priority: string; visibility: string; linked?: string }) => void;
 }) {
   const [templateOpen, setTemplateOpen] = useState(false);
   const [activeTemplate, setActiveTemplate] = useState("Understanding Map");
   const [cardCtx, setCardCtx] = useState<{ x: number; y: number } | null>(null);
 
+  const list = cards ?? MAP_CARDS;
   const groups = [
-    { label: "Key findings", ids: ["main", "must1", "must2"] },
-    { label: "Open questions & decisions", ids: ["q1", "decision1"] },
-    { label: "Risks & next actions", ids: ["risk1", "action1"] },
-  ];
+    { label: "Key findings", items: list.filter((c) => c.type === "main" || c.type === "must-know") },
+    { label: "Open questions & decisions", items: list.filter((c) => c.type === "question" || c.type === "decision") },
+    { label: "Risks & next actions", items: list.filter((c) => c.type === "risk" || c.type === "action") },
+  ].filter((g) => g.items.length > 0);
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
-      <ContextWorkStrip />
+      <ContextWorkStrip counts={workCounts} liveTasks={liveTasks} liveQuestions={liveQuestions} onCreateTask={onCreateTask} />
       <div className="flex-1 overflow-y-auto px-8 py-6">
         <div className="max-w-4xl mx-auto flex flex-col gap-8">
           <div className="flex items-center justify-between">
@@ -939,7 +1051,7 @@ function MapMode({
                     <motion.div initial={{ opacity: 0, scale: 0.97, y: 4 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.97 }} transition={{ duration: 0.12 }} className="absolute right-0 top-8 z-20 rounded-xl border border-border overflow-hidden" style={{ background: "var(--card)", boxShadow: "0 8px 32px rgba(0,31,63,0.12)", minWidth: 188 }}>
                       {MAP_TEMPLATES.map(t => (
                         <button key={t} onClick={() => { setActiveTemplate(t); setTemplateOpen(false); }} className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-secondary transition-colors text-left" style={{ fontSize: "0.8rem", fontWeight: activeTemplate === t ? 600 : 400 }}>
-                          {t}{activeTemplate === t && <Check size={12} style={{ color: "#00804C" }} />}
+                          {t}{activeTemplate === t && <Check size={12} style={{ color: "var(--status-positive)" }} />}
                         </button>
                       ))}
                     </motion.div>
@@ -949,11 +1061,22 @@ function MapMode({
             </div>
           </div>
 
+          {groups.length === 0 && (
+            <div className="flex flex-col items-center justify-center gap-3 py-20 text-center">
+              <div className="w-11 h-11 rounded-xl flex items-center justify-center" style={{ background: "var(--space-accent-soft)" }}>
+                <Lightbulb size={18} style={{ color: "var(--space-accent)" }} />
+              </div>
+              <p style={{ fontWeight: 700, fontSize: "0.95rem" }}>No understanding yet</p>
+              <p style={{ fontSize: "0.82rem", color: "var(--muted-foreground)", maxWidth: 320, lineHeight: 1.55 }}>
+                Add sources with the bottom bar, then analyze them — Bridge will build this map from what it reads.
+              </p>
+            </div>
+          )}
           {groups.map((group) => (
             <div key={group.label}>
               <p style={{ fontSize: "0.7rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--muted-foreground)", marginBottom: 12 }}>{group.label}</p>
               <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(auto-fill, minmax(280px, 1fr))` }}>
-                {MAP_CARDS.filter((c) => group.ids.includes(c.id)).map((card) => (
+                {group.items.map((card) => (
                   <div key={card.id} onContextMenu={e => { e.preventDefault(); setCardCtx({ x: e.clientX, y: e.clientY }); }}>
                     <InsightCardItem card={card} onSelect={onCardSelect} onSourceSelect={onSourceSelect} />
                   </div>
@@ -1163,7 +1286,7 @@ function PDFViewer({ onAnnotate }: { onAnnotate: (text: string) => void }) {
           className="flex items-start gap-2 px-3 py-2.5 rounded-xl border-l-2"
           style={{ background: "rgba(219,230,76,0.15)", borderColor: "#DBE64C", fontSize: "0.8rem" }}
         >
-          <StickyNote size={12} style={{ color: "#4A5200", marginTop: 2, flexShrink: 0 }} />
+          <StickyNote size={12} style={{ color: "var(--accent-strong)", marginTop: 2, flexShrink: 0 }} />
           <span>{note.text}</span>
           <span style={{ color: "var(--muted-foreground)", marginLeft: "auto", flexShrink: 0, fontFamily: "var(--font-mono)", fontSize: "0.7rem" }}>
             p.{note.page}
@@ -1327,9 +1450,9 @@ function AudioViewer({ onAnnotate }: { onAnnotate: (text: string) => void }) {
           <button
             onClick={() => setPlaying((p) => !p)}
             className="w-10 h-10 rounded-full flex items-center justify-center transition-all hover:scale-105"
-            style={{ background: "#001F3F" }}
+            style={{ background: "var(--btn-brand-bg)" }}
           >
-            {playing ? <Pause size={16} style={{ color: "#DBE64C" }} /> : <Play size={16} style={{ color: "#DBE64C", marginLeft: 1 }} />}
+            {playing ? <Pause size={16} style={{ color: "var(--btn-brand-fg)" }} /> : <Play size={16} style={{ color: "var(--btn-brand-fg)", marginLeft: 1 }} />}
           </button>
           <div className="flex-1">
             <p style={{ fontWeight: 600, fontSize: "0.85rem" }}>Stakeholder Interview — Dr. Chen</p>
@@ -1422,7 +1545,7 @@ function ImageViewer({ onAnnotate }: { onAnnotate: (text: string) => void }) {
             { x: 200, y: 200, label: "D3: Alignment", color: "#1E488F" },
             { x: 320, y: 140, label: "Gateway", color: "#C0392B", bold: true },
             { x: 420, y: 100, label: "Path A", color: "#00804C" },
-            { x: 420, y: 180, label: "Path B", color: "#001F3F" },
+            { x: 420, y: 180, label: "Path B", color: "#5C7AA6" },
           ].map((node, i) => (
             <g key={i}>
               <rect x={node.x - 44} y={node.y - 16} width={88} height={32} rx={8} fill={node.color + "18"} stroke={node.color} strokeWidth={node.bold ? 2 : 1} />
@@ -1441,7 +1564,7 @@ function ImageViewer({ onAnnotate }: { onAnnotate: (text: string) => void }) {
           ))}
           {/* D4 label */}
           <rect x={292} y={200} width={80} height={28} rx={6} fill="rgba(219,230,76,0.3)" stroke="#DBE64C" strokeWidth={1.5} strokeDasharray="4 2" />
-          <text x={332} y={214} textAnchor="middle" dominantBaseline="middle" fontSize={9} fill="#4A5200" fontWeight={700} fontFamily="var(--font-sans)">D4: New node</text>
+          <text x={332} y={214} textAnchor="middle" dominantBaseline="middle" fontSize={9} fill="var(--accent-strong)" fontWeight={700} fontFamily="var(--font-sans)">D4: New node</text>
         </svg>
 
         {/* Pin note */}
@@ -1449,7 +1572,7 @@ function ImageViewer({ onAnnotate }: { onAnnotate: (text: string) => void }) {
           className="absolute top-4 right-4 px-3 py-2 rounded-xl border shadow-sm"
           style={{ background: "#FFFDE7", borderColor: "#DBE64C", fontSize: "0.75rem", maxWidth: 160, lineHeight: 1.5 }}
         >
-          <p style={{ fontWeight: 700, fontSize: "0.67rem", color: "#4A5200", marginBottom: 3 }}>📌 Pinned note</p>
+          <p style={{ fontWeight: 700, fontSize: "0.67rem", color: "var(--accent-strong)", marginBottom: 3 }}>📌 Pinned note</p>
           D4 is missing from Framework v3. Check with team.
         </div>
       </div>
@@ -1557,14 +1680,14 @@ function DrawerActionButton({
       onClick={onClick}
       className="flex items-center gap-2 px-3 py-2 rounded-xl border transition-colors text-left"
       style={{
-        background: primary ? "#001F3F" : "var(--card)",
-        borderColor: primary ? "#001F3F" : "var(--border)",
-        color: primary ? "#DBE64C" : "var(--foreground)",
+        background: primary ? "var(--btn-brand-bg)" : "var(--card)",
+        borderColor: primary ? "var(--btn-brand-bg)" : "var(--border)",
+        color: primary ? "var(--btn-brand-fg)" : "var(--foreground)",
         fontSize: "0.8rem",
         fontWeight: 650,
       }}
     >
-      <Icon size={13} style={{ color: primary ? "#DBE64C" : "var(--muted-foreground)", flexShrink: 0 }} />
+      <Icon size={13} style={{ color: primary ? "var(--btn-brand-fg)" : "var(--muted-foreground)", flexShrink: 0 }} />
       {label}
     </button>
   );
@@ -1647,7 +1770,7 @@ function SourceDocumentPreview({
                 style={{
                   fontSize: "0.83rem",
                   lineHeight: 1.7,
-                  background: para.highlight ? "rgba(219,230,76,0.25)" : "transparent",
+                  background: para.highlight ? "var(--status-warn-soft)" : "transparent",
                   borderRadius: para.highlight ? 6 : 0,
                   padding: para.highlight ? "4px 6px" : 0,
                   margin: para.highlight ? "0 -6px" : 0,
@@ -1696,8 +1819,8 @@ function SourceDocumentPreview({
         <div className="flex flex-col gap-4">
           <div className="rounded-2xl border border-border p-4" style={{ background: "var(--background)" }}>
             <div className="flex items-center gap-3 mb-4">
-              <button className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: "#001F3F" }}>
-                <Play size={15} style={{ color: "#DBE64C", marginLeft: 1 }} />
+              <button className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: "var(--btn-brand-bg)" }}>
+                <Play size={15} style={{ color: "var(--btn-brand-fg)", marginLeft: 1 }} />
               </button>
               <div>
                 <p style={{ fontSize: "0.84rem", fontWeight: 750 }}>Stakeholder Interview</p>
@@ -1734,7 +1857,7 @@ function SourceDocumentPreview({
                 { x: 140, y: 156, label: "D3", color: "#1E488F" },
                 { x: 224, y: 110, label: "Gateway", color: "#C0392B" },
                 { x: 292, y: 82, label: "Path A", color: "#00804C" },
-                { x: 292, y: 144, label: "Path B", color: "#001F3F" },
+                { x: 292, y: 144, label: "Path B", color: "#5C7AA6" },
               ].map((node) => (
                 <g key={node.label}>
                   <rect x={node.x - 34} y={node.y - 14} width={68} height={28} rx={7} fill={node.color + "18"} stroke={node.color} strokeWidth={node.label === "Gateway" ? 2 : 1.25} />
@@ -1745,7 +1868,7 @@ function SourceDocumentPreview({
                 <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} stroke="var(--muted-foreground)" strokeWidth={1} opacity={0.45} />
               ))}
               <rect x={198} y={156} width={68} height={26} rx={6} fill="rgba(219,230,76,0.3)" stroke="#DBE64C" strokeWidth={1.5} strokeDasharray="4 2" />
-              <text x={232} y={169} textAnchor="middle" dominantBaseline="middle" fontSize={9} fill="#4A5200" fontWeight={800}>D4: New</text>
+              <text x={232} y={169} textAnchor="middle" dominantBaseline="middle" fontSize={9} fill="var(--accent-strong)" fontWeight={800}>D4: New</text>
             </svg>
           </div>
           <div className="px-4 py-3 border-t border-border" style={{ background: "var(--card)" }}>
@@ -2045,33 +2168,46 @@ function RightPanel({
 
 // ─── Context Work Mode ───────────────────────────────────────────────────────
 
-function ContextWorkMode() {
-  const [tab, setTab] = useState("Tracking");
+function ContextWorkMode({ liveTasks, liveQuestions, onCreateTask }: { liveTasks?: CwTask[]; liveQuestions?: CwQuestion[]; onCreateTask?: (task: { title: string; assignee: string; status: string; priority: string; visibility: string; linked?: string }) => void } = {}) {
+  const isLiveWork = liveTasks !== undefined;
+  const taskList = liveTasks ?? CW_TASKS;
+  const questionList = liveQuestions ?? CW_QUESTIONS;
+  const [tab, setTab] = useState(isLiveWork ? "Tasks" : "Tracking");
   const [createTask, setCreateTask] = useState<string | null>(null);
   const [selectedTask, setSelectedTask] = useState<string | null>(null);
 
+  // Live bridges only have Tasks/Questions; snap back if live data arrives late.
+  useEffect(() => {
+    if (isLiveWork && !["Tasks", "Questions"].includes(tab)) setTab("Tasks");
+  }, [isLiveWork]);
+
   const statusColor = (s: string) => {
-    if (s === "Blocked")      return { bg: "rgba(192,57,43,0.12)",  color: "#C0392B" };
-    if (s === "In progress")  return { bg: "rgba(0,128,76,0.12)",   color: "#00804C" };
-    if (s === "Needs review") return { bg: "rgba(219,230,76,0.25)", color: "#4A5200" };
-    if (s === "Done")         return { bg: "rgba(92,107,90,0.12)",  color: "#5C6B5A" };
+    if (s === "Blocked")      return { bg: "var(--status-danger-soft)",  color: "var(--status-danger)" };
+    if (s === "In progress")  return { bg: "var(--status-positive-soft)",   color: "#00804C" };
+    if (s === "Needs review") return { bg: "var(--status-warn-soft)", color: "var(--accent-strong)" };
+    if (s === "Done")         return { bg: "var(--status-neutral-soft)",  color: "var(--status-neutral)" };
     return { bg: "var(--secondary)", color: "var(--muted-foreground)" };
   };
   const priorityColor = (p: string) => p === "Critical" || p === "High" ? "#C0392B" : p === "Medium" ? "#8A9300" : "#5C6B5A";
   const taskSwimlanes = [
-    { title: "Needs decision", helper: "Blocked, unclear, or waiting on source context", tasks: CW_TASKS.filter(t => ["Blocked", "To do"].includes(t.status)) },
-    { title: "Execution & review", helper: "Active delivery and final review work", tasks: CW_TASKS.filter(t => ["In progress", "Needs review", "Done"].includes(t.status)) },
+    { title: "Needs decision", helper: "Blocked, unclear, or waiting on source context", tasks: taskList.filter(t => ["Blocked", "To do"].includes(t.status)) },
+    { title: "Execution & review", helper: "Active delivery and final review work", tasks: taskList.filter(t => ["In progress", "Needs review", "Done"].includes(t.status)) },
   ];
-  const tabs = [
-    { id: "Tracking", count: "42%" },
-    { id: "Tasks", count: String(CW_TASKS.length) },
-    { id: "Questions", count: String(CW_QUESTIONS.length) },
-    { id: "Timeline", count: String(CW_TIMELINE.length) },
-    { id: "People", count: String(CW_PEOPLE.length) },
-    { id: "Changes", count: String(CW_CHANGES.length) },
-  ];
+  const tabs = isLiveWork
+    ? [
+        { id: "Tasks", count: String(taskList.length) },
+        { id: "Questions", count: String(questionList.length) },
+      ]
+    : [
+        { id: "Tracking", count: "42%" },
+        { id: "Tasks", count: String(taskList.length) },
+        { id: "Questions", count: String(questionList.length) },
+        { id: "Timeline", count: String(CW_TIMELINE.length) },
+        { id: "People", count: String(CW_PEOPLE.length) },
+        { id: "Changes", count: String(CW_CHANGES.length) },
+      ];
 
-  const TaskCard = ({ task }: { task: typeof CW_TASKS[number] }) => {
+  const TaskCard = ({ task }: { task: CwTask }) => {
     const sc = statusColor(task.status);
     const isSelected = selectedTask === task.key;
     return (
@@ -2086,9 +2222,9 @@ function ContextWorkMode() {
           </div>
           <p style={{ fontSize: "0.86rem", fontWeight: 700, lineHeight: 1.35, marginBottom: 9 }}>{task.title}</p>
           <div className="flex items-center gap-2 flex-wrap">
-            <div className="w-5 h-5 rounded-full flex items-center justify-center" style={{ background: "#001F3F", fontSize: "0.52rem", fontWeight: 800, color: "#fff" }}>{task.assignee}</div>
+            <div className="w-5 h-5 rounded-full flex items-center justify-center" style={{ background: "var(--ink)", fontSize: "0.52rem", fontWeight: 800, color: "var(--ink-inverse)" }}>{task.assignee}</div>
             <span style={{ fontSize: "0.7rem", color: "var(--muted-foreground)" }}>Due {task.due}</span>
-            <span style={{ fontSize: "0.68rem", padding: "2px 7px", borderRadius: 7, background: "rgba(30,72,143,0.08)", color: "#1E488F", border: "1px solid rgba(30,72,143,0.18)" }}>{task.linked}</span>
+            <span style={{ fontSize: "0.68rem", padding: "2px 7px", borderRadius: 7, background: "var(--status-info-soft)", color: "var(--status-info)", border: "1px solid rgba(30,72,143,0.18)" }}>{task.linked}</span>
           </div>
         </button>
         <AnimatePresence>
@@ -2111,9 +2247,9 @@ function ContextWorkMode() {
       <div className="px-8 py-3 border-b border-border flex-shrink-0" style={{ background: "var(--card)" }}>
         <div className="flex items-center gap-1.5 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
           {tabs.map(t => (
-            <button key={t.id} onClick={() => setTab(t.id)} className="flex items-center gap-2 px-3 py-2 rounded-xl transition-all" style={{ background: tab === t.id ? "var(--background)" : "transparent", border: tab === t.id ? "1px solid var(--border)" : "1px solid transparent", boxShadow: tab === t.id ? "0 1px 4px rgba(0,31,63,0.06)" : "none", color: tab === t.id ? "#001F3F" : "var(--muted-foreground)", fontSize: "0.8rem", fontWeight: tab === t.id ? 800 : 600 }}>
+            <button key={t.id} onClick={() => setTab(t.id)} className="flex items-center gap-2 px-3 py-2 rounded-xl transition-all" style={{ background: tab === t.id ? "var(--background)" : "transparent", border: tab === t.id ? "1px solid var(--border)" : "1px solid transparent", boxShadow: tab === t.id ? "0 1px 4px rgba(0,31,63,0.06)" : "none", color: tab === t.id ? "var(--foreground)" : "var(--muted-foreground)", fontSize: "0.8rem", fontWeight: tab === t.id ? 800 : 600 }}>
               <span>{t.id}</span>
-              <span style={{ fontSize: "0.68rem", fontWeight: 800, padding: "1px 6px", borderRadius: 99, background: tab === t.id ? "#DBE64C" : "var(--secondary)", color: tab === t.id ? "#001F3F" : "var(--muted-foreground)" }}>{t.count}</span>
+              <span style={{ fontSize: "0.68rem", fontWeight: 800, padding: "1px 6px", borderRadius: 99, background: tab === t.id ? "#DBE64C" : "var(--secondary)", color: tab === t.id ? "var(--foreground)" : "var(--muted-foreground)" }}>{t.count}</span>
             </button>
           ))}
         </div>
@@ -2128,7 +2264,7 @@ function ContextWorkMode() {
                   <button key={item.label} onClick={() => setTab(item.label === "Blocked work" ? "Tasks" : item.label === "Review load" ? "People" : item.label === "Context coverage" ? "Questions" : "Timeline")} className="rounded-2xl border border-border p-4 text-left hover:-translate-y-px transition-all" style={{ background: "var(--card)", boxShadow: "0 1px 4px rgba(0,31,63,0.05)" }}>
                     <p style={{ fontSize: "0.72rem", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--muted-foreground)", marginBottom: 10 }}>{item.label}</p>
                     <div className="flex items-end gap-2 mb-3">
-                      <span style={{ fontSize: "1.9rem", fontWeight: 850, lineHeight: 1, color: "#001F3F" }}>{item.value}</span>
+                      <span style={{ fontSize: "1.9rem", fontWeight: 850, lineHeight: 1, color: "var(--foreground)" }}>{item.value}</span>
                       <span style={{ fontSize: "0.72rem", color: "var(--muted-foreground)", marginBottom: 3 }}>{item.helper}</span>
                     </div>
                     <div className="h-2 rounded-full overflow-hidden" style={{ background: "var(--secondary)" }}>
@@ -2141,12 +2277,12 @@ function ContextWorkMode() {
                 <div className="rounded-2xl border border-border p-4" style={{ background: "var(--card)" }}>
                   <div className="flex items-center justify-between mb-4">
                     <p style={{ fontSize: "0.75rem", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--muted-foreground)" }}>Next management focus</p>
-                    <button onClick={() => setTab("Tasks")} style={{ fontSize: "0.72rem", fontWeight: 700, color: "#1E488F" }}>Open task board</button>
+                    <button onClick={() => setTab("Tasks")} style={{ fontSize: "0.72rem", fontWeight: 700, color: "var(--status-info)" }}>Open task board</button>
                   </div>
                   <div className="grid gap-2" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
                     {["Unblock BRG-12 by confirming decision owner", "Analyze changed sources before sharing the handoff", "Turn unresolved questions into assigned context tasks", "Move approved findings into main Bridge context"].map(focus => (
                       <div key={focus} className="flex items-start gap-2 rounded-xl border border-border p-3" style={{ background: "var(--background)" }}>
-                        <Target size={13} style={{ color: "#001F3F", marginTop: 2, flexShrink: 0 }} />
+                        <Target size={13} style={{ color: "var(--ink)", marginTop: 2, flexShrink: 0 }} />
                         <span style={{ fontSize: "0.78rem", lineHeight: 1.45 }}>{focus}</span>
                       </div>
                     ))}
@@ -2156,7 +2292,7 @@ function ContextWorkMode() {
                   <p style={{ fontSize: "0.75rem", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--muted-foreground)", marginBottom: 12 }}>Context graph cues</p>
                   {["BRG-12 ↔ Open Question ↔ PDF p.14", "Design Brief change ↔ Decision Gateway", "D4 node ↔ Flow Diagram ↔ Framework v3"].map(link => (
                     <button key={link} onClick={() => setTab("Questions")} className="w-full flex items-center gap-2 text-left rounded-xl border border-border px-3 py-2.5 mb-2 hover:bg-secondary transition-colors" style={{ background: "var(--background)", fontSize: "0.76rem" }}>
-                      <GitBranch size={13} style={{ color: "#1E488F", flexShrink: 0 }} />{link}
+                      <GitBranch size={13} style={{ color: "var(--status-info)", flexShrink: 0 }} />{link}
                     </button>
                   ))}
                 </div>
@@ -2183,16 +2319,16 @@ function ContextWorkMode() {
             </div>
           )}
 
-          {tab === "Questions" && CW_QUESTIONS.map(q => (
+          {tab === "Questions" && questionList.map(q => (
             <div key={q.title} className="rounded-2xl border border-border p-4" style={{ background: "var(--card)" }}>
               <div className="flex items-center justify-between gap-2 mb-3">
-                <span style={{ fontSize: "0.65rem", fontWeight: 800, padding: "2px 8px", borderRadius: 7, background: q.status === "Open" ? "rgba(192,57,43,0.1)" : "rgba(0,128,76,0.1)", color: q.status === "Open" ? "#C0392B" : "#00804C" }}>{q.status}</span>
+                <span style={{ fontSize: "0.65rem", fontWeight: 800, padding: "2px 8px", borderRadius: 7, background: q.status === "Open" ? "var(--status-danger-soft)" : "var(--status-positive-soft)", color: q.status === "Open" ? "#C0392B" : "#00804C" }}>{q.status}</span>
                 <span style={{ fontSize: "0.65rem", color: "var(--muted-foreground)" }}>Confidence: {q.confidence}</span>
               </div>
               <p style={{ fontSize: "0.9rem", fontWeight: 700, lineHeight: 1.4, marginBottom: 6 }}>{q.title}</p>
               <p style={{ fontSize: "0.72rem", color: "var(--muted-foreground)", marginBottom: 12 }}>{q.linked}</p>
               <div className="flex items-center justify-between flex-wrap gap-2">
-                <div className="flex items-center gap-2"><div className="w-5 h-5 rounded-full flex items-center justify-center" style={{ background: "#001F3F", fontSize: "0.52rem", fontWeight: 800, color: "#fff" }}>{q.owner.slice(0,2).toUpperCase()}</div><span style={{ fontSize: "0.75rem", color: "var(--muted-foreground)" }}>{q.owner}</span></div>
+                <div className="flex items-center gap-2"><div className="w-5 h-5 rounded-full flex items-center justify-center" style={{ background: "var(--ink)", fontSize: "0.52rem", fontWeight: 800, color: "var(--ink-inverse)" }}>{q.owner.slice(0,2).toUpperCase()}</div><span style={{ fontSize: "0.75rem", color: "var(--muted-foreground)" }}>{q.owner}</span></div>
                 <div className="flex gap-1.5">{["Ask Bridge","Assign as task","Resolve"].map(a => <button key={a} onClick={a === "Assign as task" ? () => setCreateTask(`Open Question — ${q.title.slice(0,30)}`) : undefined} className="px-3 py-1.5 rounded-lg border border-border hover:bg-secondary transition-colors" style={{ fontSize: "0.72rem", fontWeight: 600, color: "var(--muted-foreground)" }}>{a}</button>)}</div>
               </div>
             </div>
@@ -2220,22 +2356,22 @@ function ContextWorkMode() {
           {tab === "People" && CW_PEOPLE.map(person => (
             <div key={person.name} className="rounded-2xl border border-border p-4" style={{ background: "var(--card)" }}>
               <div className="flex items-center gap-3 mb-3"><div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: person.color, fontSize: "0.7rem", fontWeight: 800, color: "#fff" }}>{person.initials}</div><div className="flex-1 min-w-0"><p style={{ fontSize: "0.9rem", fontWeight: 700 }}>{person.name}</p><p style={{ fontSize: "0.72rem", color: "var(--muted-foreground)" }}>{person.role}</p></div><span style={{ fontSize: "0.65rem", fontWeight: 700, padding: "3px 9px", borderRadius: 99, background: "var(--secondary)", color: "var(--muted-foreground)", border: "1px solid var(--border)" }}>{person.access}</span></div>
-              <div className="flex flex-wrap gap-2 mb-3">{person.tasks && <span style={{ fontSize: "0.68rem", fontWeight: 700, color: "#5C6B5A", background: "rgba(92,107,90,0.1)", padding: "2px 9px", borderRadius: 99 }}>{person.tasks} tasks</span>}{person.review && <span style={{ fontSize: "0.68rem", fontWeight: 700, color: "#4A5200", background: "rgba(219,230,76,0.2)", padding: "2px 9px", borderRadius: 99 }}>{person.review} review</span>}{person.blocked && <span style={{ fontSize: "0.68rem", fontWeight: 700, color: "#C0392B", background: "rgba(192,57,43,0.1)", padding: "2px 9px", borderRadius: 99 }}>{person.blocked} blocked</span>}</div>
+              <div className="flex flex-wrap gap-2 mb-3">{person.tasks && <span style={{ fontSize: "0.68rem", fontWeight: 700, color: "var(--status-neutral)", background: "var(--status-neutral-soft)", padding: "2px 9px", borderRadius: 99 }}>{person.tasks} tasks</span>}{person.review && <span style={{ fontSize: "0.68rem", fontWeight: 700, color: "var(--accent-strong)", background: "var(--status-warn-soft)", padding: "2px 9px", borderRadius: 99 }}>{person.review} review</span>}{person.blocked && <span style={{ fontSize: "0.68rem", fontWeight: 700, color: "var(--status-danger)", background: "var(--status-danger-soft)", padding: "2px 9px", borderRadius: 99 }}>{person.blocked} blocked</span>}</div>
               <div className="flex gap-2">{["View context","Assign task","Share context"].map(a => <button key={a} className="px-3 py-1.5 rounded-lg border border-border hover:bg-secondary transition-colors" style={{ fontSize: "0.72rem", fontWeight: 600, color: "var(--muted-foreground)" }}>{a}</button>)}</div>
             </div>
           ))}
 
           {tab === "Changes" && CW_CHANGES.map(ch => (
             <div key={ch.file} className="rounded-2xl border border-border p-4" style={{ background: "var(--card)" }}>
-              <div className="flex items-start justify-between gap-3 mb-3"><div><p style={{ fontSize: "0.9rem", fontWeight: 700, lineHeight: 1.3 }}>{ch.file}</p><p style={{ fontSize: "0.72rem", color: "var(--muted-foreground)", marginTop: 2 }}>{ch.provider} · {ch.ago} · by {ch.by}</p></div><span style={{ fontSize: "0.65rem", fontWeight: 800, padding: "3px 9px", borderRadius: 99, background: ch.status === "Needs analysis" ? "rgba(192,57,43,0.1)" : "rgba(219,230,76,0.2)", color: ch.status === "Needs analysis" ? "#C0392B" : "#4A5200", flexShrink: 0 }}>{ch.status}</span></div>
+              <div className="flex items-start justify-between gap-3 mb-3"><div><p style={{ fontSize: "0.9rem", fontWeight: 700, lineHeight: 1.3 }}>{ch.file}</p><p style={{ fontSize: "0.72rem", color: "var(--muted-foreground)", marginTop: 2 }}>{ch.provider} · {ch.ago} · by {ch.by}</p></div><span style={{ fontSize: "0.65rem", fontWeight: 800, padding: "3px 9px", borderRadius: 99, background: ch.status === "Needs analysis" ? "var(--status-danger-soft)" : "var(--status-warn-soft)", color: ch.status === "Needs analysis" ? "#C0392B" : "#4A5200", flexShrink: 0 }}>{ch.status}</span></div>
               <div className="flex flex-col gap-1 mb-4">{ch.affected.map(a => <div key={a} className="flex items-center gap-2"><GitBranch size={11} style={{ color: "var(--muted-foreground)", flexShrink: 0 }} /><span style={{ fontSize: "0.75rem", color: "var(--muted-foreground)" }}>{a}</span></div>)}</div>
-              <div className="flex gap-2 flex-wrap">{["Analyze changes","Create task","View diff","Ignore"].map(a => <button key={a} onClick={a === "Create task" ? () => setCreateTask(`Change: ${ch.file}`) : undefined} className="px-3 py-1.5 rounded-lg border border-border hover:bg-secondary transition-colors" style={{ fontSize: "0.72rem", fontWeight: a === "Analyze changes" ? 800 : 600, background: a === "Analyze changes" ? "#001F3F" : "transparent", color: a === "Analyze changes" ? "#DBE64C" : "var(--muted-foreground)", borderColor: a === "Analyze changes" ? "#001F3F" : "var(--border)" }}>{a}</button>)}</div>
+              <div className="flex gap-2 flex-wrap">{["Analyze changes","Create task","View diff","Ignore"].map(a => <button key={a} onClick={a === "Create task" ? () => setCreateTask(`Change: ${ch.file}`) : undefined} className="px-3 py-1.5 rounded-lg border border-border hover:bg-secondary transition-colors" style={{ fontSize: "0.72rem", fontWeight: a === "Analyze changes" ? 800 : 600, background: a === "Analyze changes" ? "var(--btn-brand-bg)" : "transparent", color: a === "Analyze changes" ? "var(--btn-brand-fg)" : "var(--muted-foreground)", borderColor: a === "Analyze changes" ? "var(--btn-brand-bg)" : "var(--border)" }}>{a}</button>)}</div>
             </div>
           ))}
         </div>
       </div>
 
-      <AnimatePresence>{createTask !== null && <CreateTaskModal onClose={() => setCreateTask(null)} prefill={createTask} />}</AnimatePresence>
+      <AnimatePresence>{createTask !== null && <CreateTaskModal onClose={() => setCreateTask(null)} prefill={createTask} onCreate={onCreateTask} />}</AnimatePresence>
     </div>
   );
 }
@@ -2243,10 +2379,16 @@ function ContextWorkMode() {
 // ─── Bottom Command Bar ──────────────────────────────────────────────────────
 
 const MODE_ITEMS = [
-  { id: "map"       as WorkspaceMode, icon: Map,     label: "Understanding" },
-  { id: "workspace" as WorkspaceMode, icon: BookOpen, label: "Canvas"        },
-  { id: "work"      as WorkspaceMode, icon: Target,   label: "Action Hub"    },
+  { id: "map"       as WorkspaceMode, icon: Map,      label: "Map",       hint: "Shared understanding" },
+  { id: "workspace" as WorkspaceMode, icon: BookOpen, label: "Workspace", hint: "Private canvas" },
+  { id: "work"      as WorkspaceMode, icon: Target,   label: "Work",      hint: "Tasks & changes" },
 ];
+
+const SPACE_CLASS: Record<WorkspaceMode, string> = {
+  map: "space-map",
+  workspace: "space-workspace",
+  work: "space-work",
+};
 
 type BottomActionId =
   | "upload"
@@ -2304,25 +2446,30 @@ function BottomCommandBar({
         boxShadow: "0 4px 24px rgba(0,31,63,0.10), 0 1px 4px rgba(0,31,63,0.06)",
       }}
     >
-      {/* Mode switcher */}
+      {/* Mode switcher — each space carries its signature accent */}
       <div className="flex items-center rounded-xl p-1 gap-0.5" style={{ background: "var(--secondary)" }}>
-        {MODE_ITEMS.map((m) => (
-          <button
-            key={m.id}
-            onClick={() => onModeChange(m.id)}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg transition-all"
-            style={{
-              background: mode === m.id ? "var(--card)" : "transparent",
-              color: mode === m.id ? "var(--foreground)" : "var(--muted-foreground)",
-              fontWeight: mode === m.id ? 600 : 400,
-              fontSize: "0.825rem",
-              boxShadow: mode === m.id ? "0 1px 3px rgba(0,31,63,0.1)" : "none",
-            }}
-          >
-            <m.icon size={13} />
-            {m.label}
-          </button>
-        ))}
+        {MODE_ITEMS.map((m) => {
+          const active = mode === m.id;
+          return (
+            <button
+              key={m.id}
+              onClick={() => onModeChange(m.id)}
+              title={m.hint}
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg transition-all ${SPACE_CLASS[m.id]}`}
+              style={{
+                background: active ? "var(--card)" : "transparent",
+                color: active ? "var(--space-accent)" : "var(--muted-foreground)",
+                fontWeight: active ? 700 : 400,
+                fontSize: "0.825rem",
+                boxShadow: active ? "var(--shadow-sm)" : "none",
+              }}
+            >
+              <m.icon size={13} />
+              {m.label}
+              {active && <span className="w-1.5 h-1.5 rounded-full ml-0.5" style={{ background: "var(--space-accent-bright)" }} />}
+            </button>
+          );
+        })}
       </div>
 
       <div className="w-px h-5 bg-border mx-0.5" />
@@ -2349,17 +2496,44 @@ function Backdrop({ onClick }: { onClick: () => void }) {
   return <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-40" onClick={onClick} />;
 }
 
-function UploadModal({ onClose, onConfirm }: { onClose: () => void; onConfirm: (l: string) => void }) {
+function UploadModal({ onClose, onConfirm, onFiles }: { onClose: () => void; onConfirm: (l: string) => void; onFiles?: (files: FileList) => void }) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [dragOver, setDragOver] = useState(false);
+
+  const handleDropzoneClick = () => {
+    if (onFiles) fileInputRef.current?.click();
+    else onConfirm("File");
+  };
+
   return (
     <>
       <Backdrop onClick={onClose} />
-      <motion.div initial={{ opacity: 0, scale: 0.96, y: 8 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.96 }} transition={{ duration: 0.2, ease: [0.16,1,0.3,1] }} className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-lg rounded-2xl border border-border overflow-hidden" style={{ background: "var(--card)", boxShadow: "0 24px 64px rgba(0,31,63,0.18)" }}>
+      <motion.div initial={{ opacity: 0, scale: 0.96, y: 8 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.96 }} transition={{ duration: 0.2, ease: [0.16,1,0.3,1] }} className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-lg rounded-2xl border border-border overflow-hidden" style={{ background: "var(--card)", boxShadow: "var(--shadow-xl)" }}>
         <div className="flex items-center justify-between px-5 py-4 border-b border-border">
           <p style={{ fontWeight: 700, fontSize: "1rem" }}>Add sources</p>
           <button onClick={onClose} className="hover:bg-secondary rounded-lg p-1.5 transition-colors" style={{ color: "var(--muted-foreground)" }}><X size={15} /></button>
         </div>
         <div className="p-5 flex flex-col gap-4">
-          <div className="rounded-2xl border-2 border-dashed flex flex-col items-center justify-center gap-3 py-10 hover:bg-secondary transition-colors cursor-pointer" style={{ borderColor: "rgba(0,31,63,0.25)" }} onClick={() => onConfirm("File")}>
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            className="hidden"
+            onChange={(e) => { if (e.target.files?.length && onFiles) onFiles(e.target.files); }}
+          />
+          <div
+            className="rounded-2xl border-2 border-dashed flex flex-col items-center justify-center gap-3 py-10 hover:bg-secondary transition-colors cursor-pointer"
+            style={{ borderColor: dragOver ? "var(--ring)" : "var(--border-strong)", background: dragOver ? "var(--status-warn-soft)" : undefined }}
+            onClick={handleDropzoneClick}
+            onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+            onDragLeave={() => setDragOver(false)}
+            onDrop={(e) => {
+              e.preventDefault();
+              setDragOver(false);
+              if (e.dataTransfer.files.length && onFiles) onFiles(e.dataTransfer.files);
+              else if (!onFiles) onConfirm("File");
+            }}
+          >
             <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: "var(--secondary)" }}>
               <Upload size={18} style={{ color: "var(--muted-foreground)" }} />
             </div>
@@ -2388,13 +2562,14 @@ function UploadModal({ onClose, onConfirm }: { onClose: () => void; onConfirm: (
   );
 }
 
-function PasteLinkModal({ onClose, onConfirm }: { onClose: () => void; onConfirm: (l: string) => void }) {
+function PasteLinkModal({ onClose, onConfirm, onSubmitUrl }: { onClose: () => void; onConfirm: (l: string) => void; onSubmitUrl?: (url: string) => void }) {
   const [url, setUrl] = useState("");
   const [loading, setLoading] = useState(false);
   const [preview, setPreview] = useState(false);
   const [error, setError] = useState(false);
   const handleAdd = () => {
     if (!url.trim()) { setError(true); return; }
+    if (onSubmitUrl) { onSubmitUrl(url.trim()); return; }
     setError(false); setPreview(false); setLoading(true);
     setTimeout(() => { setLoading(false); setPreview(true); }, 1100);
   };
@@ -2409,16 +2584,16 @@ function PasteLinkModal({ onClose, onConfirm }: { onClose: () => void; onConfirm
         <div className="p-4 flex flex-col gap-3">
           <div className="flex gap-2">
             <input value={url} onChange={e => { setUrl(e.target.value); setError(false); setPreview(false); }} placeholder="https://…" className="flex-1 px-3 py-2 rounded-xl border outline-none" style={{ fontSize: "0.875rem", background: "var(--input-background)", borderColor: error ? "#C0392B" : "var(--border)" }} onKeyDown={e => e.key === "Enter" && handleAdd()} autoFocus />
-            <button onClick={handleAdd} className="px-4 py-2 rounded-xl" style={{ background: "#001F3F", color: "#DBE64C", fontSize: "0.875rem", fontWeight: 600 }}>Add</button>
+            <button onClick={handleAdd} className="px-4 py-2 rounded-xl" style={{ background: "var(--btn-brand-bg)", color: "var(--btn-brand-fg)", fontSize: "0.875rem", fontWeight: 600 }}>Add</button>
           </div>
-          {error && <p style={{ fontSize: "0.75rem", color: "#C0392B" }}>Enter a valid URL to continue.</p>}
+          {error && <p style={{ fontSize: "0.75rem", color: "var(--status-danger)" }}>Enter a valid URL to continue.</p>}
           {loading && <div className="flex items-center gap-2 py-1"><div className="w-4 h-4 rounded-full border-2 border-border border-t-transparent animate-spin" /><p style={{ fontSize: "0.8rem", color: "var(--muted-foreground)" }}>Loading preview…</p></div>}
           <AnimatePresence>
             {preview && (
               <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} className="rounded-xl border border-border p-3" style={{ background: "var(--secondary)" }}>
                 <p style={{ fontSize: "0.67rem", color: "var(--muted-foreground)", fontFamily: "var(--font-mono)", marginBottom: 4 }}>{url}</p>
                 <p style={{ fontWeight: 600, fontSize: "0.85rem", marginBottom: 8 }}>Preview loaded — ready to add</p>
-                <button onClick={() => onConfirm("Link")} className="w-full py-2 rounded-xl" style={{ background: "#001F3F", color: "#DBE64C", fontSize: "0.85rem", fontWeight: 600 }}>Add to Canvas</button>
+                <button onClick={() => onConfirm("Link")} className="w-full py-2 rounded-xl" style={{ background: "var(--btn-brand-bg)", color: "var(--btn-brand-fg)", fontSize: "0.85rem", fontWeight: 600 }}>Add to Canvas</button>
               </motion.div>
             )}
           </AnimatePresence>
@@ -2428,7 +2603,7 @@ function PasteLinkModal({ onClose, onConfirm }: { onClose: () => void; onConfirm
   );
 }
 
-function PostItModal({ onClose, onConfirm }: { onClose: () => void; onConfirm: (l: string) => void }) {
+function PostItModal({ onClose, onConfirm, onSubmitNote }: { onClose: () => void; onConfirm: (l: string) => void; onSubmitNote?: (text: string) => void }) {
   const [text, setText] = useState("");
   const [isPrivate, setIsPrivate] = useState(false);
   const colors = ["#FEFCD0","#D4F1C0","#D0E8FF","#FFD4D4"];
@@ -2444,13 +2619,13 @@ function PostItModal({ onClose, onConfirm }: { onClose: () => void; onConfirm: (
         <div className="p-4 flex flex-col gap-3">
           <textarea value={text} onChange={e => setText(e.target.value)} placeholder="Type your note…" rows={4} className="w-full px-3 py-2.5 rounded-xl border border-border outline-none resize-none" style={{ fontSize: "0.875rem", background: color, lineHeight: 1.55 }} autoFocus />
           <div className="flex items-center justify-between">
-            <div className="flex gap-1.5">{colors.map(c => <button key={c} onClick={() => setColor(c)} className="w-5 h-5 rounded-full border-2 transition-all" style={{ background: c, borderColor: color === c ? "#001F3F" : "#00000020" }} />)}</div>
+            <div className="flex gap-1.5">{colors.map(c => <button key={c} onClick={() => setColor(c)} className="w-5 h-5 rounded-full border-2 transition-all" style={{ background: c, borderColor: color === c ? "var(--ink)" : "#00000020" }} />)}</div>
             <button className="flex items-center gap-2" onClick={() => setIsPrivate(p => !p)}>
-              <div className="w-4 h-4 rounded flex items-center justify-center" style={{ background: isPrivate ? "#001F3F" : "var(--secondary)", border: isPrivate ? "none" : "1.5px solid var(--border)" }}>{isPrivate && <Check size={9} style={{ color: "#fff" }} />}</div>
+              <div className="w-4 h-4 rounded flex items-center justify-center" style={{ background: isPrivate ? "var(--ink)" : "var(--secondary)", border: isPrivate ? "none" : "1.5px solid var(--border)" }}>{isPrivate && <Check size={9} style={{ color: "var(--ink-inverse)" }} />}</div>
               <span style={{ fontSize: "0.78rem" }}>Private</span>
             </button>
           </div>
-          <button onClick={() => text.trim() && onConfirm("Post-it")} className="w-full py-2 rounded-xl transition-all" style={{ background: text.trim() ? "#001F3F" : "var(--secondary)", color: text.trim() ? "#DBE64C" : "var(--muted-foreground)", fontSize: "0.875rem", fontWeight: 600 }}>
+          <button onClick={() => text.trim() && (onSubmitNote ? onSubmitNote(text.trim()) : onConfirm("Post-it"))} className="w-full py-2 rounded-xl transition-all" style={{ background: text.trim() ? "var(--btn-brand-bg)" : "var(--secondary)", color: text.trim() ? "var(--btn-brand-fg)" : "var(--muted-foreground)", fontSize: "0.875rem", fontWeight: 600 }}>
             Place on canvas
           </button>
         </div>
@@ -2483,16 +2658,16 @@ function RecordModal({ onClose, onConfirm }: { onClose: () => void; onConfirm: (
             <p style={{ fontFamily: "var(--font-mono)", fontSize: "1.4rem", fontWeight: 700, color: recording ? "#00804C" : "var(--muted-foreground)" }}>
               {String(Math.floor(seconds / 60)).padStart(2,"0")}:{String(seconds % 60).padStart(2,"0")}
             </p>
-            {recording && <p style={{ fontSize: "0.75rem", color: "#00804C", marginTop: 3 }}>Recording… speak clearly</p>}
+            {recording && <p style={{ fontSize: "0.75rem", color: "var(--status-positive)", marginTop: 3 }}>Recording… speak clearly</p>}
             {stopped && <p style={{ fontSize: "0.75rem", color: "var(--muted-foreground)", marginTop: 3, fontStyle: "italic" }}>Transcript loading…</p>}
           </div>
           <div className="flex items-center justify-center gap-3">
             {!stopped ? (
-              <button onClick={recording ? stopRecording : startRecording} className="w-12 h-12 rounded-full flex items-center justify-center transition-all hover:scale-105 flex-shrink-0" style={{ background: recording ? "#C0392B" : "#001F3F" }}>
-                {recording ? <div className="w-4 h-4 rounded-sm bg-white" /> : <Mic size={18} style={{ color: "#DBE64C" }} />}
+              <button onClick={recording ? stopRecording : startRecording} className="w-12 h-12 rounded-full flex items-center justify-center transition-all hover:scale-105 flex-shrink-0" style={{ background: recording ? "var(--destructive)" : "var(--btn-brand-bg)" }}>
+                {recording ? <div className="w-4 h-4 rounded-sm bg-white" /> : <Mic size={18} style={{ color: "var(--btn-brand-fg)" }} />}
               </button>
             ) : (
-              <button onClick={() => onConfirm("Recording")} className="px-6 py-2.5 rounded-xl" style={{ background: "#001F3F", color: "#DBE64C", fontSize: "0.875rem", fontWeight: 600 }}>Save to Canvas</button>
+              <button onClick={() => onConfirm("Recording")} className="px-6 py-2.5 rounded-xl" style={{ background: "var(--btn-brand-bg)", color: "var(--btn-brand-fg)", fontSize: "0.875rem", fontWeight: 600 }}>Save to Canvas</button>
             )}
             <button onClick={onClose} className="px-4 py-2 rounded-xl border border-border hover:bg-secondary transition-colors" style={{ fontSize: "0.8rem", fontWeight: 500, color: "var(--muted-foreground)" }}>Cancel</button>
           </div>
@@ -2529,7 +2704,7 @@ function QuickActionModal({
         <div className="p-4 flex flex-col gap-3">
           <p style={{ fontSize: "0.8rem", color: "var(--muted-foreground)", lineHeight: 1.55 }}>{description}</p>
           <textarea value={value} onChange={e => setValue(e.target.value)} placeholder={placeholder} rows={4} className="w-full px-3 py-2.5 rounded-xl border border-border outline-none resize-none" style={{ fontSize: "0.875rem", background: "var(--input-background)", lineHeight: 1.55 }} autoFocus />
-          <button onClick={() => value.trim() && onConfirm(value)} className="w-full py-2.5 rounded-xl transition-all" style={{ background: value.trim() ? "#001F3F" : "var(--secondary)", color: value.trim() ? "#DBE64C" : "var(--muted-foreground)", fontSize: "0.875rem", fontWeight: 800 }}>
+          <button onClick={() => value.trim() && onConfirm(value)} className="w-full py-2.5 rounded-xl transition-all" style={{ background: value.trim() ? "var(--btn-brand-bg)" : "var(--secondary)", color: value.trim() ? "var(--btn-brand-fg)" : "var(--muted-foreground)", fontSize: "0.875rem", fontWeight: 800 }}>
             {confirmLabel}
           </button>
         </div>
@@ -2561,7 +2736,7 @@ function MoreMenu({ mode, onClose, onSelect }: { mode: WorkspaceMode; onClose: (
   return (
     <>
       <Backdrop onClick={onClose} />
-      <motion.div initial={{ opacity: 0, y: 8, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 6 }} transition={{ duration: 0.15, ease: [0.16,1,0.3,1] }} className="fixed bottom-28 left-1/2 -translate-x-1/2 z-50 w-64 rounded-2xl border border-border overflow-hidden" style={{ background: "var(--card)", boxShadow: "0 16px 48px rgba(0,31,63,0.14)" }}>
+      <motion.div initial={{ opacity: 0, y: 8, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 6 }} transition={{ duration: 0.15, ease: [0.16,1,0.3,1] }} className="fixed bottom-28 left-1/2 -translate-x-1/2 z-50 w-64 rounded-2xl border border-border overflow-hidden" style={{ background: "var(--card)", boxShadow: "var(--shadow-lg)" }}>
         <div className="px-4 py-2.5 border-b border-border">
           <p style={{ fontSize: "0.72rem", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--muted-foreground)" }}>
             {mode === "map" ? "Understanding actions" : mode === "workspace" ? "Canvas actions" : "Action Hub actions"}
@@ -2586,22 +2761,161 @@ function MoreMenu({ mode, onClose, onSelect }: { mode: WorkspaceMode; onClose: (
 
 // ─── Main Canvas ─────────────────────────────────────────────────────────────
 
+// ─── Live Source Viewer ──────────────────────────────────────────────────────
+// Opens a persisted source from the local API: PDFs and images render inline,
+// audio/video get players, text shows extracted content, links open out.
+
+function LiveSourceViewer({ source, onClose, onAnalyze, onDelete }: {
+  source: ApiSource;
+  onClose: () => void;
+  onAnalyze: (id: string) => void;
+  onDelete: (id: string) => void;
+}) {
+  const [full, setFull] = useState<ApiSource | null>(null);
+  useEffect(() => {
+    api.getSource(source.id).then(setFull).catch(() => setFull(source));
+  }, [source.id]);
+
+  const src = full ?? source;
+  const summary = parseSummary(src.summary);
+  const fileUrl = api.sourceFileUrl(src.id);
+  const TYPE_LABEL: Record<string, string> = { pdf: "PDF", doc: "Document", text: "Text", image: "Image", audio: "Audio", video: "Video", link: "Link", note: "Note" };
+
+  return (
+    <>
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-40" style={{ background: "rgba(0,0,0,0.3)", backdropFilter: "blur(4px)" }} onClick={onClose} />
+      <motion.div
+        initial={{ opacity: 0, scale: 0.97, y: 10 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.97 }}
+        transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+        className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-3xl rounded-2xl border border-border overflow-hidden flex flex-col"
+        style={{ background: "var(--card)", boxShadow: "var(--shadow-xl)", height: "min(80vh, 720px)" }}
+      >
+        <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-border flex-shrink-0">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: "var(--secondary)" }}>
+              <FileText size={14} style={{ color: "var(--muted-foreground)" }} />
+            </div>
+            <div className="min-w-0">
+              <p className="truncate" style={{ fontWeight: 700, fontSize: "0.9rem" }}>{src.title}</p>
+              <p style={{ fontSize: "0.7rem", color: "var(--muted-foreground)" }}>{TYPE_LABEL[src.type] || src.type} · {src.meta} · {timeAgo(src.created_at)}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            <button onClick={() => onAnalyze(src.id)} className="px-3 py-1.5 rounded-lg transition-all hover:opacity-90" style={{ background: "var(--btn-brand-bg)", color: "var(--btn-brand-fg)", fontSize: "0.75rem", fontWeight: 700 }}>
+              Analyze
+            </button>
+            <button onClick={() => onDelete(src.id)} className="px-3 py-1.5 rounded-lg border border-border hover:bg-secondary transition-colors" style={{ fontSize: "0.75rem", fontWeight: 600, color: "var(--status-danger)" }}>
+              Remove
+            </button>
+            <button onClick={onClose} className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-secondary transition-colors" style={{ color: "var(--muted-foreground)" }}>
+              <X size={15} />
+            </button>
+          </div>
+        </div>
+
+        {summary && (
+          <div className="px-5 py-3 border-b border-border flex flex-col gap-2 flex-shrink-0" style={{ background: "var(--space-tint)" }}>
+            <p style={{ fontSize: "0.8rem", lineHeight: 1.55, color: "var(--foreground)" }}>{summary.lead}</p>
+            {summary.keywords.length > 0 && (
+              <div className="flex gap-1.5 flex-wrap">
+                {summary.keywords.map((k) => (
+                  <span key={k} style={{ fontSize: "0.65rem", fontWeight: 700, padding: "2px 8px", borderRadius: 99, background: "var(--status-warn-soft)", color: "var(--accent-strong)" }}>{k}</span>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        <div className="flex-1 overflow-auto" style={{ background: "var(--background)" }}>
+          {src.type === "pdf" && <iframe title={src.title} src={fileUrl} className="w-full h-full border-0" />}
+          {src.type === "image" && (
+            <div className="flex items-center justify-center p-6 h-full">
+              <img src={fileUrl} alt={src.title} className="max-w-full max-h-full rounded-xl" style={{ boxShadow: "var(--shadow-md)" }} />
+            </div>
+          )}
+          {src.type === "audio" && (
+            <div className="flex items-center justify-center p-10">
+              <audio controls src={fileUrl} className="w-full max-w-md" />
+            </div>
+          )}
+          {src.type === "video" && (
+            <div className="flex items-center justify-center p-6">
+              <video controls src={fileUrl} className="max-w-full max-h-full rounded-xl" />
+            </div>
+          )}
+          {(src.type === "text" || src.type === "note") && (
+            <div className="px-8 py-6 max-w-2xl mx-auto">
+              <pre className="whitespace-pre-wrap" style={{ fontFamily: "var(--font-sans)", fontSize: "0.875rem", lineHeight: 1.7, color: "var(--foreground)" }}>
+                {src.text_content || "No text content extracted."}
+              </pre>
+            </div>
+          )}
+          {src.type === "link" && (
+            <div className="flex flex-col items-center justify-center gap-4 h-full p-10 text-center">
+              <div className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: "var(--secondary)" }}>
+                <Globe size={20} style={{ color: "var(--muted-foreground)" }} />
+              </div>
+              <p style={{ fontSize: "0.85rem", color: "var(--muted-foreground)", fontFamily: "var(--font-mono)", wordBreak: "break-all", maxWidth: 420 }}>{src.url}</p>
+              <a href={src.url || "#"} target="_blank" rel="noreferrer" className="px-4 py-2 rounded-xl transition-all hover:opacity-90" style={{ background: "var(--btn-brand-bg)", color: "var(--btn-brand-fg)", fontSize: "0.85rem", fontWeight: 700 }}>
+                Open link
+              </a>
+            </div>
+          )}
+          {src.type === "doc" && (
+            <div className="flex flex-col items-center justify-center gap-3 h-full p-10 text-center">
+              <FileText size={26} style={{ color: "var(--muted-foreground)" }} />
+              <p style={{ fontSize: "0.85rem", color: "var(--muted-foreground)" }}>Preview not available for this format.</p>
+              <a href={fileUrl} download className="px-4 py-2 rounded-xl border border-border hover:bg-secondary transition-colors" style={{ fontSize: "0.85rem", fontWeight: 600 }}>Download file</a>
+            </div>
+          )}
+        </div>
+      </motion.div>
+    </>
+  );
+}
+
 export function Canvas({ theme, onToggleTheme, onNavigate, canvasId }: Props) {
-  const [mode, setMode] = useState<WorkspaceMode>("map");
+  const [mode, setMode] = useState<WorkspaceMode>(() => {
+    const fromUrl = new URLSearchParams(window.location.search).get("mode");
+    return fromUrl === "workspace" || fromUrl === "work" ? fromUrl : "map";
+  });
   const [leftOpen, setLeftOpen] = useState(true);
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
   const [selectedSourceId, setSelectedSourceId] = useState<string | null>(null);
   const [sourcePopupId, setSourcePopupId] = useState<string | null>(null);
   const [rightOpen, setRightOpen] = useState(false);
-  const [isEmpty, setIsEmpty] = useState(canvasId === "new");
+  const [isEmptyMock, setIsEmptyMock] = useState(canvasId === "new");
   const [processingMsg, setProcessingMsg] = useState<string | null>(null);
   const [showShareModal, setShowShareModal] = useState(false);
   const [showActivityPanel, setShowActivityPanel] = useState(false);
   const [toasts, setToasts] = useState<{ id: number; msg: string }[]>([]);
   const toastCounter = useRef(0);
 
+  // Live bridge state from the local API. When the id doesn't resolve
+  // (e.g. the prototype demo ids), the screen falls back to mock data.
+  const [live, setLive] = useState<BridgeState | null>(null);
+  const [liveCards, setLiveCards] = useState<MapCard[] | null>(null);
+  const [liveSourceView, setLiveSourceView] = useState<ApiSource | null>(null);
+
+  const refreshLive = async () => {
+    try {
+      const state = await api.getBridge(canvasId);
+      setLive(state);
+      setLiveCards(await api.getMap(canvasId).catch(() => []));
+    } catch {
+      setLive(null);
+      setLiveCards(null);
+    }
+  };
+  useEffect(() => { refreshLive(); }, [canvasId]);
+
+  const isLive = live !== null;
+  const isEmpty = isLive ? live.sources.length === 0 : isEmptyMock;
+
   const isDark = theme === "dark";
-  const title = CANVAS_TITLES[canvasId] || "Untitled Bridge";
+  const title = live?.bridge.title || CANVAS_TITLES[canvasId] || "Untitled Bridge";
 
   const addToast = (msg: string) => {
     const id = ++toastCounter.current;
@@ -2622,6 +2936,10 @@ export function Canvas({ theme, onToggleTheme, onNavigate, canvasId }: Props) {
   };
 
   const handleContentSourceOpen = (id: string) => {
+    if (isLive) {
+      const src = live.sources.find((s) => s.id === id);
+      if (src) { setLiveSourceView(src); return; }
+    }
     setSourcePopupId(id);
     setRightOpen(false);
     setSelectedCardId(null);
@@ -2649,13 +2967,100 @@ export function Canvas({ theme, onToggleTheme, onNavigate, canvasId }: Props) {
   };
   const confirmSource = (label: string) => {
     closeAction();
-    if (isEmpty) setIsEmpty(false);
+    if (!isLive && isEmptyMock) setIsEmptyMock(false);
     addToast(`${label} added — Bridge is reading…`);
     setProcessingMsg("Reading new source…");
     setTimeout(() => { setProcessingMsg("Map refreshed"); setTimeout(() => setProcessingMsg(null), 2000); }, 2200);
   };
 
+  /* ── Live (persisted) actions ── */
+  const liveUploadFiles = async (files: FileList | File[]) => {
+    closeAction();
+    setProcessingMsg("Reading new source…");
+    try {
+      for (const file of Array.from(files)) {
+        await api.uploadFile(canvasId, file);
+      }
+      await refreshLive();
+      addToast(`${files.length > 1 ? `${files.length} sources` : "Source"} added — Map updated`);
+      setProcessingMsg("Map refreshed");
+    } catch (err) {
+      addToast(`Upload failed — ${err instanceof Error ? err.message : "unknown error"}`);
+      setProcessingMsg(null);
+      return;
+    }
+    setTimeout(() => setProcessingMsg(null), 2000);
+  };
+
+  const liveAddLink = async (url: string) => {
+    closeAction();
+    try {
+      await api.addLink(canvasId, url.startsWith("http") ? url : `https://${url}`);
+      await refreshLive();
+      addToast("Link connected — kept in sync");
+    } catch (err) {
+      addToast(`Couldn't add link — ${err instanceof Error ? err.message : "invalid URL"}`);
+    }
+  };
+
+  const liveAddNote = async (content: string) => {
+    closeAction();
+    try {
+      await api.addNoteSource(canvasId, content, content.slice(0, 60));
+      await refreshLive();
+      addToast("Note added to Bridge context");
+    } catch (err) {
+      addToast(`Couldn't save note — ${err instanceof Error ? err.message : "error"}`);
+    }
+  };
+
+  const liveCreateTask = async (task: { title: string; assignee?: string; status?: string; priority?: string; visibility?: string; linked?: string }) => {
+    closeAction();
+    try {
+      const created = await api.createTask(canvasId, task);
+      await refreshLive();
+      addToast(`Task ${created.key} created and linked to this Bridge`);
+    } catch (err) {
+      addToast(`Couldn't create task — ${err instanceof Error ? err.message : "error"}`);
+    }
+  };
+
+  const liveAnalyzeSource = async (id: string) => {
+    try {
+      await api.analyzeSource(id);
+      await refreshLive();
+      addToast("Source analyzed — understanding refreshed");
+    } catch (err) {
+      addToast(`Analysis failed — ${err instanceof Error ? err.message : "error"}`);
+    }
+  };
+
+  const liveDeleteSource = async (id: string) => {
+    try {
+      await api.deleteSource(id);
+      setLiveSourceView(null);
+      await refreshLive();
+      addToast("Source removed");
+    } catch (err) {
+      addToast(`Couldn't remove source — ${err instanceof Error ? err.message : "error"}`);
+    }
+  };
+
   const runAnalysis = (label = "Analyzing connected sources…") => {
+    if (isLive) {
+      const pending = live.sources.filter((s) => s.status === "needs-analysis" || s.status === "changed");
+      if (pending.length === 0) { addToast("All sources are up to date"); return; }
+      setProcessingMsg("Analyzing sources…");
+      Promise.all(pending.map((s) => api.analyzeSource(s.id)))
+        .then(refreshLive)
+        .then(() => {
+          setProcessingMsg("Understanding refreshed");
+          setTimeout(() => setProcessingMsg(null), 2200);
+          addToast(`${pending.length} source${pending.length > 1 ? "s" : ""} analyzed`);
+        })
+        .catch(() => setProcessingMsg(null));
+      return;
+    }
     addToast(label);
     setProcessingMsg("Analyzing sources…");
     setTimeout(() => { setProcessingMsg("Understanding refreshed"); setTimeout(() => setProcessingMsg(null), 2200); }, 1800);
@@ -2719,10 +3124,15 @@ export function Canvas({ theme, onToggleTheme, onNavigate, canvasId }: Props) {
     }
   };
 
+  const activeMode = MODE_ITEMS.find((m) => m.id === mode)!;
+
   return (
-    <div className="h-screen flex flex-col bg-background overflow-hidden" style={{ fontFamily: "var(--font-sans)" }}>
+    <div className={`h-screen flex flex-col bg-background overflow-hidden ${SPACE_CLASS[mode]}`} style={{ fontFamily: "var(--font-sans)" }}>
       {/* ── Top bar ── */}
-      <header className="flex items-center gap-3 px-4 py-2.5 border-b border-border flex-shrink-0" style={{ background: "var(--card)", minHeight: 52 }}>
+      <header
+        className="flex items-center gap-3 px-4 py-2.5 border-b flex-shrink-0"
+        style={{ background: "var(--card)", minHeight: 52, borderColor: "var(--border)", boxShadow: "inset 0 -2px 0 var(--space-accent-soft)" }}
+      >
         <button
           onClick={() => onNavigate("home")}
           className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg hover:bg-secondary transition-colors flex-shrink-0"
@@ -2740,6 +3150,16 @@ export function Canvas({ theme, onToggleTheme, onNavigate, canvasId }: Props) {
             <GitBranch size={10} style={{ color: "#001F3F" }} strokeWidth={2.5} />
           </div>
           <p className="truncate" style={{ fontWeight: 600, fontSize: "0.9rem" }}>{title}</p>
+
+          {!isEmpty && (
+            <span
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-full flex-shrink-0"
+              style={{ background: "var(--space-accent-soft)", color: "var(--space-accent)", fontSize: "0.7rem", fontWeight: 700 }}
+            >
+              <activeMode.icon size={10} />
+              {activeMode.hint}
+            </span>
+          )}
 
           <AnimatePresence mode="wait">
             {processingMsg && (
@@ -2763,7 +3183,7 @@ export function Canvas({ theme, onToggleTheme, onNavigate, canvasId }: Props) {
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 className="flex items-center gap-1.5 px-2.5 py-1 rounded-full flex-shrink-0"
-                style={{ background: "rgba(219,230,76,0.3)", fontSize: "0.72rem", fontWeight: 600, color: "#4A5200" }}
+                style={{ background: "var(--status-warn-soft)", fontSize: "0.72rem", fontWeight: 600, color: "var(--accent-strong)" }}
               >
                 <Zap size={10} style={{ fill: "#4A5200" }} />
                 Understanding ready
@@ -2793,7 +3213,7 @@ export function Canvas({ theme, onToggleTheme, onNavigate, canvasId }: Props) {
                   exit={{ opacity: 0, y: 4, scale: 0.97 }}
                   transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
                   className="absolute right-0 top-10 z-50 w-72 rounded-2xl border border-border overflow-hidden"
-                  style={{ background: "var(--card)", boxShadow: "0 16px 48px rgba(0,31,63,0.14)" }}
+                  style={{ background: "var(--card)", boxShadow: "var(--shadow-lg)" }}
                 >
                   <div className="flex items-center justify-between px-4 py-3 border-b border-border">
                     <p style={{ fontWeight: 700, fontSize: "0.875rem" }}>Activity</p>
@@ -2802,13 +3222,16 @@ export function Canvas({ theme, onToggleTheme, onNavigate, canvasId }: Props) {
                     </button>
                   </div>
                   <div className="flex flex-col divide-y divide-border max-h-80 overflow-y-auto">
-                    {TIMELINE_ITEMS.map((item, i) => {
+                    {(isLive
+                      ? live.activity.map((a) => ({ event: a.event, date: timeAgo(a.created_at), source: a.source_id, type: a.type, color: a.type === "upload" ? "#1E488F" : a.type === "note" ? "#8A9300" : "#00804C" }))
+                      : TIMELINE_ITEMS
+                    ).map((item, i) => {
                       const TYPE_ICONS: Record<string, React.ElementType> = { upload: FileText, meeting: Video, decision: Target, conflict: AlertTriangle, note: StickyNote, update: Zap };
                       const Icon = TYPE_ICONS[item.type] || FileText;
                       return (
                         <button
                           key={i}
-                          onClick={() => { setShowActivityPanel(false); if (item.source) handleSourceSelect(item.source); }}
+                          onClick={() => { setShowActivityPanel(false); if (item.source) (isLive ? handleContentSourceOpen(item.source) : handleSourceSelect(item.source)); }}
                           className="flex items-start gap-3 px-4 py-3 hover:bg-secondary transition-colors text-left"
                         >
                           <div className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5" style={{ background: item.color + "18" }}>
@@ -2821,6 +3244,9 @@ export function Canvas({ theme, onToggleTheme, onNavigate, canvasId }: Props) {
                         </button>
                       );
                     })}
+                    {isLive && live.activity.length === 0 && (
+                      <p className="px-4 py-6 text-center" style={{ fontSize: "0.78rem", color: "var(--muted-foreground)" }}>No activity yet.</p>
+                    )}
                   </div>
                 </motion.div>
               )}
@@ -2841,7 +3267,7 @@ export function Canvas({ theme, onToggleTheme, onNavigate, canvasId }: Props) {
           >
             {isDark ? <Sun size={14} /> : <Moon size={14} />}
           </button>
-          <div className="w-7 h-7 rounded-full flex items-center justify-center" style={{ background: "#001F3F", fontSize: "0.65rem", fontWeight: 700, color: "#fff" }}>
+          <div className="w-7 h-7 rounded-full flex items-center justify-center" style={{ background: "var(--ink)", fontSize: "0.65rem", fontWeight: 700, color: "var(--ink-inverse)" }}>
             JC
           </div>
         </div>
@@ -2854,16 +3280,20 @@ export function Canvas({ theme, onToggleTheme, onNavigate, canvasId }: Props) {
           onToggle={() => setLeftOpen((open) => !open)}
           onSourceSelect={handleContentSourceOpen}
           isEmpty={isEmpty}
+          liveSources={isLive ? live.sources : undefined}
+          onAnalyzeSource={isLive ? liveAnalyzeSource : undefined}
+          onDeleteSource={isLive ? liveDeleteSource : undefined}
         />
 
-        {/* Center content */}
-        <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Center content — tinted with the active space's accent */}
+        <div className="flex-1 flex flex-col overflow-hidden" style={{ background: "var(--space-tint)" }}>
           {isEmpty ? (
             /* Empty canvas */
             <div
               className="flex-1 flex flex-col items-center justify-center gap-6 p-8"
               style={{
-                backgroundImage: `radial-gradient(circle at 1px 1px, var(--border) 1px, transparent 0)`,
+                background: "var(--canvas-bg)",
+                backgroundImage: `radial-gradient(circle at 1px 1px, var(--canvas-dot) 1px, transparent 0)`,
                 backgroundSize: "28px 28px",
               }}
             >
@@ -2887,7 +3317,7 @@ export function Canvas({ theme, onToggleTheme, onNavigate, canvasId }: Props) {
           ) : (
             <>
               {mode === "map" && (
-                <MapMode onCardSelect={handleCardSelect} onSourceSelect={handleSourceSelect} />
+                <MapMode onCardSelect={handleCardSelect} onSourceSelect={handleSourceSelect} cards={isLive ? (liveCards ?? []) as InsightCard[] : undefined} workCounts={isLive ? { tasks: live.tasks.filter(t => t.status !== "Done").length, questions: live.questions.filter(q => q.status === "Open").length } : undefined} liveTasks={isLive ? live.tasks.map(mapApiTask) : undefined} liveQuestions={isLive ? live.questions.map(mapApiQuestion) : undefined} onCreateTask={isLive ? liveCreateTask : undefined} />
               )}
               {mode === "workspace" && (
                 <div className="flex-1 flex flex-col overflow-hidden">
@@ -2896,7 +3326,7 @@ export function Canvas({ theme, onToggleTheme, onNavigate, canvasId }: Props) {
               )}
               {mode === "work" && (
                 <div className="flex-1 flex flex-col overflow-hidden">
-                  <ContextWorkMode />
+                  <ContextWorkMode liveTasks={isLive ? live.tasks.map(mapApiTask) : undefined} liveQuestions={isLive ? live.questions.map(mapApiQuestion) : undefined} onCreateTask={isLive ? liveCreateTask : undefined} />
                 </div>
               )}
             </>
@@ -2934,6 +3364,17 @@ export function Canvas({ theme, onToggleTheme, onNavigate, canvasId }: Props) {
       </div>
 
       <AnimatePresence>
+        {liveSourceView && (
+          <LiveSourceViewer
+            source={liveSourceView}
+            onClose={() => setLiveSourceView(null)}
+            onAnalyze={async (id) => { await liveAnalyzeSource(id); const updated = await api.getSource(id).catch(() => null); if (updated) setLiveSourceView(updated); }}
+            onDelete={liveDeleteSource}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
         {sourcePopupId && (
           <SourcePopup
             sourceId={sourcePopupId}
@@ -2960,7 +3401,7 @@ export function Canvas({ theme, onToggleTheme, onNavigate, canvasId }: Props) {
               className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-border"
               style={{ background: "var(--card)", boxShadow: "0 4px 16px rgba(0,31,63,0.1)", fontSize: "0.825rem", fontWeight: 500 }}
             >
-              <Check size={13} style={{ color: "#00804C" }} />
+              <Check size={13} style={{ color: "var(--status-positive)" }} />
               {toast.msg}
             </motion.div>
           ))}
@@ -2969,11 +3410,11 @@ export function Canvas({ theme, onToggleTheme, onNavigate, canvasId }: Props) {
 
       {/* ── Bottom action modals ── */}
       <AnimatePresence>
-        {activeAction === "upload"     && <UploadModal    onClose={closeAction} onConfirm={confirmSource} />}
-        {activeAction === "paste-link" && <PasteLinkModal onClose={closeAction} onConfirm={confirmSource} />}
-        {activeAction === "post-it"    && <PostItModal    onClose={closeAction} onConfirm={confirmSource} />}
+        {activeAction === "upload"     && <UploadModal    onClose={closeAction} onConfirm={confirmSource} onFiles={isLive ? liveUploadFiles : undefined} />}
+        {activeAction === "paste-link" && <PasteLinkModal onClose={closeAction} onConfirm={confirmSource} onSubmitUrl={isLive ? liveAddLink : undefined} />}
+        {activeAction === "post-it"    && <PostItModal    onClose={closeAction} onConfirm={confirmSource} onSubmitNote={isLive ? liveAddNote : undefined} />}
         {activeAction === "record"     && <RecordModal    onClose={closeAction} onConfirm={confirmSource} />}
-        {activeAction === "task"       && <CreateTaskModal onClose={closeAction} prefill="New source-backed action" />}
+        {activeAction === "task"       && <CreateTaskModal onClose={closeAction} prefill={isLive ? undefined : "New source-backed action"} onCreate={isLive ? liveCreateTask : undefined} />}
         {activeAction === "more"       && <MoreMenu       mode={mode} onClose={closeAction} onSelect={handleMoreSelect} />}
         {quickAction && (
           <QuickActionModal
@@ -3008,7 +3449,7 @@ export function Canvas({ theme, onToggleTheme, onNavigate, canvasId }: Props) {
               exit={{ opacity: 0, scale: 0.96 }}
               transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
               className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-md rounded-2xl border border-border overflow-hidden"
-              style={{ background: "var(--card)", boxShadow: "0 24px 64px rgba(0,31,63,0.16)" }}
+              style={{ background: "var(--card)", boxShadow: "var(--shadow-xl)" }}
             >
               <div className="flex items-center justify-between px-5 py-4 border-b border-border">
                 <p style={{ fontWeight: 700, fontSize: "1rem" }}>Share Bridge</p>
@@ -3031,7 +3472,7 @@ export function Canvas({ theme, onToggleTheme, onNavigate, canvasId }: Props) {
                       <option>Comment</option>
                       <option>Edit</option>
                     </select>
-                    <button className="px-4 py-2 rounded-xl transition-all hover:opacity-90" style={{ background: "#001F3F", color: "#F6F7ED", fontSize: "0.875rem", fontWeight: 600 }}>
+                    <button className="px-4 py-2 rounded-xl transition-all hover:opacity-90" style={{ background: "var(--primary)", color: "var(--primary-foreground)", fontSize: "0.875rem", fontWeight: 600 }}>
                       Invite
                     </button>
                   </div>
@@ -3043,8 +3484,8 @@ export function Canvas({ theme, onToggleTheme, onNavigate, canvasId }: Props) {
                     { label: "Require approval for AI inferences", on: false },
                   ].map((opt) => (
                     <label key={opt.label} className="flex items-center gap-3 cursor-pointer">
-                      <div className="w-4 h-4 rounded flex items-center justify-center flex-shrink-0" style={{ background: opt.on ? "#001F3F" : "var(--secondary)", border: opt.on ? "none" : "1.5px solid var(--border)" }}>
-                        {opt.on && <Check size={9} style={{ color: "#fff" }} />}
+                      <div className="w-4 h-4 rounded flex items-center justify-center flex-shrink-0" style={{ background: opt.on ? "var(--ink)" : "var(--secondary)", border: opt.on ? "none" : "1.5px solid var(--border)" }}>
+                        {opt.on && <Check size={9} style={{ color: "var(--ink-inverse)" }} />}
                       </div>
                       <span style={{ fontSize: "0.825rem" }}>{opt.label}</span>
                     </label>

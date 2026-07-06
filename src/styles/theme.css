@@ -1,90 +1,239 @@
 @custom-variant dark (&:is(.dark *));
 
+/* ──────────────────────────────────────────────────────────────
+   Bridge Design System — tokens
+   Light: warm off-white paper + deep navy ink + lime accent.
+   Dark:  warm charcoal-green + soft ivory ink + lime accent
+          (per spec: "dark mode inversions use charcoal with
+          green accents" — not blue-navy).
+   Spaces: Map = lime/green · Workspace = blue · Work = green.
+   ────────────────────────────────────────────────────────────── */
+
 :root {
   --font-size: 15px;
+
+  /* Surfaces */
   --background: #F6F7ED;
-  --foreground: #001F3F;
+  --surface-raised: #FBFCF5;
   --card: #FFFFFF;
   --card-foreground: #001F3F;
   --popover: #FFFFFF;
   --popover-foreground: #001F3F;
+
+  /* Ink */
+  --foreground: #001F3F;
+  --ink: #001F3F;                 /* strong text / solid fills that flip in dark */
+  --ink-inverse: #F6F7ED;         /* text on top of --ink fills */
+  --muted-foreground: #5F6B60;
+  --faint-foreground: #8A948B;
+
+  /* Brand */
   --primary: #001F3F;
   --primary-foreground: #F6F7ED;
   --secondary: #EDF0E4;
   --secondary-foreground: #001F3F;
   --muted: #E6E9DC;
-  --muted-foreground: #5C6B5A;
   --accent: #DBE64C;
-  --accent-foreground: #001F3F;
+  --accent-foreground: #232900;
+  --accent-strong: #4A5200;       /* readable text on lime tints */
   --destructive: #C0392B;
   --destructive-foreground: #FFFFFF;
-  --border: rgba(0, 31, 63, 0.09);
+
+  /* Lines & inputs */
+  --border: rgba(0, 31, 63, 0.10);
+  --border-strong: rgba(0, 31, 63, 0.18);
   --input: transparent;
-  --input-background: #ECEEE4;
+  --input-background: #EFF1E7;
   --switch-background: #C5CBBA;
-  --font-weight-medium: 500;
-  --font-weight-normal: 400;
-  --ring: #DBE64C;
+  --ring: #B9C433;
+
+  /* Status */
+  --status-positive: #00804C;
+  --status-positive-soft: rgba(0, 128, 76, 0.12);
+  --status-info: #1E488F;
+  --status-info-soft: rgba(30, 72, 143, 0.10);
+  --status-warn: #8A6D00;
+  --status-warn-soft: rgba(219, 230, 76, 0.30);
+  --status-danger: #C0392B;
+  --status-danger-soft: rgba(192, 57, 43, 0.10);
+  --status-neutral: #5F6B60;
+  --status-neutral-soft: rgba(0, 31, 63, 0.07);
+
+  /* Charts */
   --chart-1: #00804C;
   --chart-2: #74C365;
   --chart-3: #1E488F;
   --chart-4: #DBE64C;
   --chart-5: #001F3F;
-  --radius: 0.5rem;
-  --sidebar: #EDEEE5;
+
+  /* Shape */
+  --radius: 0.625rem;
+
+  /* Elevation */
+  --shadow-color: 0, 31, 63;
+  --shadow-xs: 0 1px 2px rgba(var(--shadow-color), 0.05);
+  --shadow-sm: 0 1px 4px rgba(var(--shadow-color), 0.06);
+  --shadow-md: 0 6px 20px rgba(var(--shadow-color), 0.08);
+  --shadow-lg: 0 16px 44px rgba(var(--shadow-color), 0.13);
+  --shadow-xl: 0 24px 64px rgba(var(--shadow-color), 0.18);
+
+  /* Sidebar */
+  --sidebar: #EFF0E6;
   --sidebar-foreground: #001F3F;
   --sidebar-primary: #001F3F;
   --sidebar-primary-foreground: #F6F7ED;
   --sidebar-accent: #E3E6D8;
   --sidebar-accent-foreground: #001F3F;
   --sidebar-border: rgba(0, 31, 63, 0.08);
-  --sidebar-ring: #DBE64C;
-  /* Bridge custom tokens */
+  --sidebar-ring: #B9C433;
+
+  /* Bridge brand constants (same in both modes) */
   --bridge-lime: #DBE64C;
   --bridge-navy: #001F3F;
   --bridge-green: #00804C;
   --bridge-soft-green: #74C365;
   --bridge-blue: #1E488F;
   --bridge-offwhite: #F6F7ED;
+
+  /* Brand action button: navy + lime signature in light */
+  --btn-brand-bg: #001F3F;
+  --btn-brand-fg: #DBE64C;
+
+  /* Canvas (Workspace surface) */
+  --canvas-bg: #F1F3E9;
+  --canvas-dot: rgba(0, 31, 63, 0.14);
+
+  --font-weight-medium: 500;
+  --font-weight-normal: 400;
 }
 
 .dark {
-  --background: #0C1A2B;
-  --foreground: #E8EDE5;
-  --card: #132235;
-  --card-foreground: #E8EDE5;
-  --popover: #132235;
-  --popover-foreground: #E8EDE5;
+  /* Surfaces — warm charcoal with a green undertone */
+  --background: #141712;
+  --surface-raised: #191D17;
+  --card: #1C201A;
+  --card-foreground: #ECEFE2;
+  --popover: #22261F;
+  --popover-foreground: #ECEFE2;
+
+  /* Ink */
+  --foreground: #ECEFE2;
+  --ink: #ECEFE2;
+  --ink-inverse: #171A14;
+  --muted-foreground: #A6B09D;
+  --faint-foreground: #7C857A;
+
+  /* Brand */
   --primary: #DBE64C;
-  --primary-foreground: #001F3F;
-  --secondary: #1A2E42;
-  --secondary-foreground: #E8EDE5;
-  --muted: #1A2E42;
-  --muted-foreground: #7A9080;
+  --primary-foreground: #1E2200;
+  --secondary: #252A21;
+  --secondary-foreground: #ECEFE2;
+  --muted: #262B22;
   --accent: #DBE64C;
-  --accent-foreground: #001F3F;
-  --destructive: #C0392B;
-  --destructive-foreground: #FFFFFF;
-  --border: rgba(232, 237, 229, 0.09);
-  --input: rgba(232, 237, 229, 0.06);
-  --input-background: #1A2E42;
-  --switch-background: #2A4A5E;
-  --font-weight-medium: 500;
-  --font-weight-normal: 400;
-  --ring: #DBE64C;
-  --chart-1: #74C365;
-  --chart-2: #00804C;
-  --chart-3: #1E488F;
+  --accent-foreground: #1E2200;
+  --accent-strong: #D3DE55;
+  --destructive: #E2604F;
+  --destructive-foreground: #1A0C0A;
+
+  /* Lines & inputs */
+  --border: rgba(236, 239, 226, 0.09);
+  --border-strong: rgba(236, 239, 226, 0.18);
+  --input: rgba(236, 239, 226, 0.05);
+  --input-background: #23281F;
+  --switch-background: #3A4235;
+  --ring: #B9C433;
+
+  /* Status — brightened for dark surfaces */
+  --status-positive: #6FCB8F;
+  --status-positive-soft: rgba(111, 203, 143, 0.14);
+  --status-info: #7FA3E8;
+  --status-info-soft: rgba(127, 163, 232, 0.14);
+  --status-warn: #D3DE55;
+  --status-warn-soft: rgba(219, 230, 76, 0.16);
+  --status-danger: #E2604F;
+  --status-danger-soft: rgba(226, 96, 79, 0.14);
+  --status-neutral: #A6B09D;
+  --status-neutral-soft: rgba(236, 239, 226, 0.08);
+
+  /* Charts */
+  --chart-1: #6FCB8F;
+  --chart-2: #74C365;
+  --chart-3: #7FA3E8;
   --chart-4: #DBE64C;
-  --chart-5: #E8EDE5;
-  --sidebar: #0A1622;
-  --sidebar-foreground: #E8EDE5;
+  --chart-5: #ECEFE2;
+
+  /* Elevation — deeper, softer */
+  --shadow-color: 0, 0, 0;
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.30);
+  --shadow-sm: 0 1px 4px rgba(0, 0, 0, 0.35);
+  --shadow-md: 0 6px 20px rgba(0, 0, 0, 0.40);
+  --shadow-lg: 0 16px 44px rgba(0, 0, 0, 0.50);
+  --shadow-xl: 0 24px 64px rgba(0, 0, 0, 0.60);
+
+  /* Sidebar */
+  --sidebar: #171A15;
+  --sidebar-foreground: #ECEFE2;
   --sidebar-primary: #DBE64C;
-  --sidebar-primary-foreground: #001F3F;
-  --sidebar-accent: #132235;
-  --sidebar-accent-foreground: #E8EDE5;
-  --sidebar-border: rgba(232, 237, 229, 0.08);
-  --sidebar-ring: #DBE64C;
+  --sidebar-primary-foreground: #1E2200;
+  --sidebar-accent: #22261E;
+  --sidebar-accent-foreground: #ECEFE2;
+  --sidebar-border: rgba(236, 239, 226, 0.07);
+  --sidebar-ring: #B9C433;
+
+  /* Brand action button flips to lime in dark */
+  --btn-brand-bg: #DBE64C;
+  --btn-brand-fg: #1E2200;
+
+  /* Canvas */
+  --canvas-bg: #101310;
+  --canvas-dot: rgba(236, 239, 226, 0.12);
+}
+
+/* ──────────────────────────────────────────────────────────────
+   Space theming — the three spaces share the token system but
+   each carries its own signature accent.
+   Map        → lime   (understanding, the product signature)
+   Workspace  → blue   (deep, focused exploration)
+   Work       → green  (action, progress)
+   ────────────────────────────────────────────────────────────── */
+
+.space-map {
+  --space-accent: #8A9300;
+  --space-accent-bright: #DBE64C;
+  --space-accent-soft: rgba(219, 230, 76, 0.22);
+  --space-tint: rgba(219, 230, 76, 0.05);
+}
+.dark .space-map {
+  --space-accent: #D3DE55;
+  --space-accent-bright: #DBE64C;
+  --space-accent-soft: rgba(219, 230, 76, 0.13);
+  --space-tint: rgba(219, 230, 76, 0.03);
+}
+
+.space-workspace {
+  --space-accent: #1E488F;
+  --space-accent-bright: #1E488F;
+  --space-accent-soft: rgba(30, 72, 143, 0.10);
+  --space-tint: rgba(30, 72, 143, 0.035);
+}
+.dark .space-workspace {
+  --space-accent: #7FA3E8;
+  --space-accent-bright: #7FA3E8;
+  --space-accent-soft: rgba(127, 163, 232, 0.14);
+  --space-tint: rgba(127, 163, 232, 0.04);
+}
+
+.space-work {
+  --space-accent: #00804C;
+  --space-accent-bright: #00804C;
+  --space-accent-soft: rgba(0, 128, 76, 0.10);
+  --space-tint: rgba(0, 128, 76, 0.035);
+}
+.dark .space-work {
+  --space-accent: #6FCB8F;
+  --space-accent-bright: #6FCB8F;
+  --space-accent-soft: rgba(111, 203, 143, 0.14);
+  --space-tint: rgba(111, 203, 143, 0.04);
 }
 
 @theme inline {
@@ -135,27 +284,51 @@
 
   body {
     @apply bg-background text-foreground;
+    -webkit-font-smoothing: antialiased;
   }
-
-  /**
-  * Default typography styles for HTML elements (h1-h4, p, label, button, input).
-  * These are in @layer base, so Tailwind utility classes (like text-sm, text-lg) automatically override them.
-  */
 
   html {
     font-size: var(--font-size);
+  }
+
+  ::selection {
+    background: rgba(219, 230, 76, 0.45);
+    color: #001F3F;
+  }
+  .dark ::selection {
+    background: rgba(219, 230, 76, 0.30);
+    color: #ECEFE2;
+  }
+
+  /* Slim, theme-aware scrollbars */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-strong) transparent;
+  }
+  *::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  *::-webkit-scrollbar-thumb {
+    background: var(--border-strong);
+    border-radius: 99px;
+  }
+  *::-webkit-scrollbar-track {
+    background: transparent;
   }
 
   h1 {
     font-size: var(--text-2xl);
     font-weight: var(--font-weight-medium);
     line-height: 1.5;
+    letter-spacing: -0.02em;
   }
 
   h2 {
     font-size: var(--text-xl);
     font-weight: var(--font-weight-medium);
     line-height: 1.5;
+    letter-spacing: -0.015em;
   }
 
   h3 {

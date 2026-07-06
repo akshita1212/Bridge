@@ -140,7 +140,7 @@ export function Auth({ onNavigate }: Props) {
           <button
             type="submit"
             className="w-full py-2.5 rounded-xl mt-2 transition-all hover:opacity-90 active:scale-[0.99]"
-            style={{ background: "#001F3F", color: "#F6F7ED", fontWeight: 600, fontSize: "0.9375rem" }}
+            style={{ background: "var(--primary)", color: "var(--primary-foreground)", fontWeight: 600, fontSize: "0.9375rem" }}
           >
             {mode === "signup" ? "Create account" : "Sign in"}
           </button>

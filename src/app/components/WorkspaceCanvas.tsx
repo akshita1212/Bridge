@@ -270,9 +270,9 @@ function AudioNode({ pos, selected, multiSelected, isDragging, onClick, onAction
           <button
             onClick={(e) => { e.stopPropagation(); setPlaying(p => !p); }}
             className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0"
-            style={{ background: "#001F3F" }}
+            style={{ background: "var(--btn-brand-bg)" }}
           >
-            {playing ? <Pause size={11} style={{ color: "#DBE64C" }} /> : <Play size={11} style={{ color: "#DBE64C", marginLeft: 1 }} />}
+            {playing ? <Pause size={11} style={{ color: "var(--btn-brand-fg)" }} /> : <Play size={11} style={{ color: "var(--btn-brand-fg)", marginLeft: 1 }} />}
           </button>
           <div className="min-w-0">
             <p style={{ fontSize: "0.75rem", fontWeight: 600, lineHeight: 1.2 }}>Stakeholder Interview</p>
@@ -304,7 +304,7 @@ function ImageNode({ pos, selected, multiSelected, isDragging, onClick, onAction
 }) {
   const [hovered, setHovered] = useState(false);
   return (
-    <NodeShell pos={pos} width={264} selected={selected} multiSelected={multiSelected} isDragging={isDragging} borderColor="#001F3F" hovered={hovered}
+    <NodeShell pos={pos} width={264} selected={selected} multiSelected={multiSelected} isDragging={isDragging} borderColor="#5C7AA6" hovered={hovered}
       onMouseDown={onDragStart} onClick={(e) => { e.stopPropagation(); onClick(); }}
       onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
     >
@@ -317,7 +317,7 @@ function ImageNode({ pos, selected, multiSelected, isDragging, onClick, onAction
             { x: 96, y: 104, label: "D3", color: "#1E488F" },
             { x: 164, y: 74, label: "Gateway", color: "#C0392B", bold: true },
             { x: 216, y: 50, label: "Path A", color: "#00804C" },
-            { x: 216, y: 98, label: "Path B", color: "#001F3F" },
+            { x: 216, y: 98, label: "Path B", color: "#5C7AA6" },
           ].map((n, i) => (
             <g key={i}>
               <rect x={n.x - 30} y={n.y - 12} width={60} height={24} rx={6} fill={n.color + "20"} stroke={n.color} strokeWidth={(n as any).bold ? 1.5 : 1} />
@@ -328,7 +328,7 @@ function ImageNode({ pos, selected, multiSelected, isDragging, onClick, onAction
             <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} stroke="var(--muted-foreground)" strokeWidth={0.8} opacity={0.3} />
           ))}
           <rect x={146} y={100} width={48} height={18} rx={4} fill="rgba(219,230,76,0.35)" stroke="#DBE64C" strokeWidth={1} strokeDasharray="3 2" />
-          <text x={170} y={109} textAnchor="middle" dominantBaseline="middle" fontSize={7} fill="#4A5200" fontWeight={700}>D4: New</text>
+          <text x={170} y={109} textAnchor="middle" dominantBaseline="middle" fontSize={7} fill="var(--accent-strong)" fontWeight={700}>D4: New</text>
         </svg>
         <div className="absolute top-2 right-2 w-5 h-5 rounded-full flex items-center justify-center" style={{ background: "#DBE64C", boxShadow: "0 1px 4px rgba(0,0,0,0.2)" }}>
           <Pin size={10} style={{ color: "#001F3F" }} />
@@ -337,7 +337,7 @@ function ImageNode({ pos, selected, multiSelected, isDragging, onClick, onAction
       <div className="p-3 pt-2">
         <div className="flex items-center gap-1.5 mb-1.5">
           <div className="w-5 h-5 rounded-md flex items-center justify-center" style={{ background: "#DBE64C28" }}>
-            <Image size={11} style={{ color: "#4A5200" }} />
+            <Image size={11} style={{ color: "var(--accent-strong)" }} />
           </div>
           <p style={{ fontSize: "0.75rem", fontWeight: 600, lineHeight: 1.3 }}>Flow Diagram — Final.png</p>
         </div>
@@ -423,21 +423,21 @@ function PostItNode({ id, pos, text, sourceLabel, isPrivate = false, selected, i
     >
       {isPrivate && (
         <div className="flex items-center gap-1 mb-1">
-          <Lock size={9} style={{ color: "#4A5200", opacity: 0.6 }} />
-          <span style={{ fontSize: "0.58rem", color: "#4A5200", opacity: 0.65 }}>Private</span>
+          <Lock size={9} style={{ color: "var(--accent-strong)", opacity: 0.6 }} />
+          <span style={{ fontSize: "0.58rem", color: "var(--accent-strong)", opacity: 0.65 }}>Private</span>
         </div>
       )}
       <p style={{ fontSize: "0.72rem", lineHeight: 1.45, color: "#2A3200", fontWeight: 500 }}>{text}</p>
       {sourceLabel && (
         <div className="mt-1.5">
-          <span style={{ fontSize: "0.6rem", color: "#4A5200", opacity: 0.7, background: "rgba(74,82,0,0.1)", padding: "1px 5px", borderRadius: 4 }}>{sourceLabel}</span>
+          <span style={{ fontSize: "0.6rem", color: "var(--accent-strong)", opacity: 0.7, background: "rgba(74,82,0,0.1)", padding: "1px 5px", borderRadius: 4 }}>{sourceLabel}</span>
         </div>
       )}
       <AnimatePresence>
         {hovered && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="mt-2 flex gap-1 flex-wrap" onClick={e => e.stopPropagation()}>
             {["Add to Map", "Ask Bridge"].map(a => (
-              <button key={a} className="px-1.5 py-0.5 rounded" style={{ fontSize: "0.58rem", fontWeight: 600, background: "rgba(74,82,0,0.12)", color: "#4A5200" }}>{a}</button>
+              <button key={a} className="px-1.5 py-0.5 rounded" style={{ fontSize: "0.58rem", fontWeight: 600, background: "rgba(74,82,0,0.12)", color: "var(--accent-strong)" }}>{a}</button>
             ))}
           </motion.div>
         )}
@@ -517,9 +517,9 @@ function AudioOutputNode({ pos, selected, isDragging, onClick, onDragStart }: {
           <button
             onClick={(e) => { e.stopPropagation(); setPlaying(p => !p); }}
             className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0"
-            style={{ background: "#001F3F" }}
+            style={{ background: "var(--btn-brand-bg)" }}
           >
-            {playing ? <Pause size={11} style={{ color: "#DBE64C" }} /> : <Play size={11} style={{ color: "#DBE64C", marginLeft: 1 }} />}
+            {playing ? <Pause size={11} style={{ color: "var(--btn-brand-fg)" }} /> : <Play size={11} style={{ color: "var(--btn-brand-fg)", marginLeft: 1 }} />}
           </button>
           <div className="flex-1">
             <WaveformBars count={28} height={24} color={color} progress={playing ? 0.35 : 0} />
@@ -548,7 +548,7 @@ function VideoOutputNode({ pos, selected, isDragging, onClick, onDragStart }: {
   onClick: () => void; onDragStart: (e: React.MouseEvent) => void;
 }) {
   const [hovered, setHovered] = useState(false);
-  const color = "#001F3F";
+  const color = "#5C7AA6";
   const accentColor = "#00804C";
   return (
     <NodeShell pos={pos} width={268} selected={selected} multiSelected={false} isDragging={isDragging} borderColor={color} hovered={hovered}
@@ -651,8 +651,8 @@ function SessionNode({ pos, selected, isDragging, onClick, onDragStart }: {
       <div className="p-3">
         <div className="flex items-center gap-1.5 mb-2">
           <div className="flex">
-            <div className="w-6 h-6 rounded-full flex items-center justify-center" style={{ background: "#001F3F18" }}>
-              <Mic size={10} style={{ color: "#001F3F" }} />
+            <div className="w-6 h-6 rounded-full flex items-center justify-center" style={{ background: "var(--status-neutral-soft)" }}>
+              <Mic size={10} style={{ color: "var(--muted-foreground)" }} />
             </div>
             <div className="w-6 h-6 rounded-full flex items-center justify-center -ml-1.5" style={{ background: color + "18", border: "1.5px solid var(--card)" }}>
               <MessageCircle size={10} style={{ color }} />
@@ -722,7 +722,7 @@ const SOURCE_META: Record<string, { color: string; title: string; icon: React.El
   pdf:   { color: "#1E488F", title: "Assessment Framework v3.pdf", icon: FileText, chips: ["PDF","24 pages","3 highlights"] },
   video: { color: "#00804C", title: "UX Research Session.mp4",    icon: Video,    chips: ["Video","34:22","Transcript"] },
   audio: { color: "#74C365", title: "Stakeholder Interview.mp3",  icon: AudioLines,chips: ["Audio","18:05","Transcript"] },
-  image: { color: "#4A5200", title: "Flow Diagram — Final.png",   icon: Image,    chips: ["Image","1 pin note"] },
+  image: { color: "var(--accent-strong)", title: "Flow Diagram — Final.png",   icon: Image,    chips: ["Image","1 pin note"] },
   link:  { color: "#5C6B5A", title: "NNG — Cognitive Load in UX", icon: Globe,    chips: ["Link","nngroup.com"] },
 };
 
@@ -817,7 +817,7 @@ function BridgeStudio({
                       <p style={{ fontSize: "0.78rem", fontWeight: 600, lineHeight: 1.3 }}>2 connected files changed</p>
                       <p style={{ fontSize: "0.68rem", color: "var(--muted-foreground)", marginTop: 2 }}>Design Brief updated 8 min ago</p>
                     </div>
-                    <button onClick={() => onAnnotate("Analyzing changes…")} className="flex-shrink-0 px-2.5 py-1 rounded-lg hover:opacity-90 transition-all" style={{ background: "#001F3F", color: "#DBE64C", fontSize: "0.68rem", fontWeight: 700 }}>Analyze</button>
+                    <button onClick={() => onAnnotate("Analyzing changes…")} className="flex-shrink-0 px-2.5 py-1 rounded-lg hover:opacity-90 transition-all" style={{ background: "var(--btn-brand-bg)", color: "var(--btn-brand-fg)", fontSize: "0.68rem", fontWeight: 700 }}>Analyze</button>
                   </div>
 
                   {/* Context Work */}
@@ -906,7 +906,7 @@ function BridgeStudio({
                     <p style={{ fontSize: "0.7rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--muted-foreground)", marginBottom: 8 }}>Open questions</p>
                     <div className="p-3 rounded-xl" style={{ background: "rgba(30,72,143,0.05)", border: "1px solid rgba(30,72,143,0.15)" }}>
                       <div className="flex items-start gap-2">
-                        <HelpCircle size={12} style={{ color: "#1E488F", marginTop: 2, flexShrink: 0 }} />
+                        <HelpCircle size={12} style={{ color: "var(--status-info)", marginTop: 2, flexShrink: 0 }} />
                         <p style={{ fontSize: "0.775rem", lineHeight: 1.45 }}>Who owns sign-off on the gateway redesign?</p>
                       </div>
                     </div>
@@ -1034,15 +1034,15 @@ function BridgeStudio({
                         <div className="h-px bg-border" />
                         <div className="p-3 rounded-xl" style={{ background: "rgba(219,230,76,0.12)", border: "1px solid rgba(219,230,76,0.3)" }}>
                           <div className="flex items-center gap-1.5 mb-2">
-                            <Zap size={11} style={{ color: "#4A5200" }} />
-                            <span style={{ fontSize: "0.67rem", fontWeight: 700, color: "#4A5200" }}>Bridge</span>
+                            <Zap size={11} style={{ color: "var(--accent-strong)" }} />
+                            <span style={{ fontSize: "0.67rem", fontWeight: 700, color: "var(--accent-strong)" }}>Bridge</span>
                           </div>
                           <p style={{ fontSize: "0.8rem", lineHeight: 1.65 }}>
                             The core issue is the simultaneous presentation of three criteria at the decision gateway, creating peak cognitive load. Dr. Chen confirmed the March 15 timeline shift. The flow diagram shows an undocumented node (D4) absent from Framework v3.
                           </p>
                           <div className="flex flex-wrap gap-1 mt-3">
                             {["PDF p.14", "Audio 08:42", "Diagram"].map(ref => (
-                              <button key={ref} className="px-2 py-0.5 rounded-full border hover:bg-secondary transition-colors" style={{ fontSize: "0.65rem", fontWeight: 600, color: "#1E488F", background: "#1E488F10", borderColor: "#1E488F28" }}>
+                              <button key={ref} className="px-2 py-0.5 rounded-full border hover:bg-secondary transition-colors" style={{ fontSize: "0.65rem", fontWeight: 600, color: "var(--status-info)", background: "#1E488F10", borderColor: "#1E488F28" }}>
                                 → {ref}
                               </button>
                             ))}
@@ -1062,7 +1062,7 @@ function BridgeStudio({
                       style={{ fontSize: "0.825rem", background: "var(--input-background)" }}
                       onKeyDown={e => { if (e.key === "Enter" && askInput.trim()) { setAsked(true); setAskInput(""); onAnnotate("Bridge answered"); } }}
                     />
-                    <button className="px-3 py-2 rounded-xl" style={{ background: "#001F3F", color: "#DBE64C", fontSize: "0.825rem", fontWeight: 600 }}>Ask</button>
+                    <button className="px-3 py-2 rounded-xl" style={{ background: "var(--btn-brand-bg)", color: "var(--btn-brand-fg)", fontSize: "0.825rem", fontWeight: 600 }}>Ask</button>
                   </div>
                   <button className="flex items-center justify-center gap-2 w-full px-3 py-2 rounded-xl border border-border hover:bg-secondary transition-colors" style={{ fontSize: "0.78rem" }}>
                     <Mic size={13} style={{ color: "var(--muted-foreground)" }} />
@@ -1074,9 +1074,9 @@ function BridgeStudio({
               {/* ── CREATE AUDIO ── */}
               {panelState === "create-audio" && (
                 <>
-                  <div className="flex items-center gap-2 p-3 rounded-xl" style={{ background: "rgba(0,128,76,0.07)", border: "1.5px solid rgba(0,128,76,0.2)" }}>
-                    <AudioLines size={14} style={{ color: "#00804C" }} />
-                    <span style={{ fontSize: "0.825rem", fontWeight: 600, color: "#00804C" }}>Audio Explainer</span>
+                  <div className="flex items-center gap-2 p-3 rounded-xl" style={{ background: "var(--status-positive-soft)", border: "1.5px solid rgba(0,128,76,0.2)" }}>
+                    <AudioLines size={14} style={{ color: "var(--status-positive)" }} />
+                    <span style={{ fontSize: "0.825rem", fontWeight: 600, color: "var(--status-positive)" }}>Audio Explainer</span>
                   </div>
                   {[
                     { label: "Source scope", opts: ["All sources","Selected sources","Current frame"] },
@@ -1088,12 +1088,12 @@ function BridgeStudio({
                       <p style={{ fontSize: "0.7rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--muted-foreground)", marginBottom: 8 }}>{label}</p>
                       <div className="flex flex-wrap gap-1.5">
                         {opts.map((o, i) => (
-                          <button key={o} className="px-3 py-1.5 rounded-xl border transition-colors" style={{ fontSize: "0.78rem", fontWeight: i === 0 ? 600 : 400, background: i === 0 ? "#001F3F" : "var(--secondary)", color: i === 0 ? "#F6F7ED" : "var(--foreground)", borderColor: i === 0 ? "#001F3F" : "var(--border)" }}>{o}</button>
+                          <button key={o} className="px-3 py-1.5 rounded-xl border transition-colors" style={{ fontSize: "0.78rem", fontWeight: i === 0 ? 600 : 400, background: i === 0 ? "var(--ink)" : "var(--secondary)", color: i === 0 ? "var(--ink-inverse)" : "var(--foreground)", borderColor: i === 0 ? "var(--ink)" : "var(--border)" }}>{o}</button>
                         ))}
                       </div>
                     </div>
                   ))}
-                  <button onClick={triggerCreate} className="w-full py-2.5 rounded-xl transition-all" style={{ background: "#001F3F", color: "#DBE64C", fontSize: "0.9rem", fontWeight: 700 }}>
+                  <button onClick={triggerCreate} className="w-full py-2.5 rounded-xl transition-all" style={{ background: "var(--btn-brand-bg)", color: "var(--btn-brand-fg)", fontSize: "0.9rem", fontWeight: 700 }}>
                     {creating ? "Creating…" : created ? "✓ Audio created" : "Create audio"}
                   </button>
                 </>
@@ -1103,8 +1103,8 @@ function BridgeStudio({
               {panelState === "create-video" && (
                 <>
                   <div className="flex items-center gap-2 p-3 rounded-xl" style={{ background: "rgba(0,31,63,0.06)", border: "1.5px solid rgba(0,31,63,0.2)" }}>
-                    <Film size={14} style={{ color: "#001F3F" }} />
-                    <span style={{ fontSize: "0.825rem", fontWeight: 600, color: "#001F3F" }}>Video Explainer</span>
+                    <Film size={14} style={{ color: "var(--foreground)" }} />
+                    <span style={{ fontSize: "0.825rem", fontWeight: 600, color: "var(--foreground)" }}>Video Explainer</span>
                   </div>
                   {[
                     { label: "Source scope", opts: ["All sources","Selected sources","Current frame"] },
@@ -1117,12 +1117,12 @@ function BridgeStudio({
                       <p style={{ fontSize: "0.7rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--muted-foreground)", marginBottom: 8 }}>{label}</p>
                       <div className="flex flex-wrap gap-1.5">
                         {opts.map((o, i) => (
-                          <button key={o} className="px-3 py-1.5 rounded-xl border transition-colors" style={{ fontSize: "0.78rem", fontWeight: i === 0 ? 600 : 400, background: i === 0 ? "#001F3F" : "var(--secondary)", color: i === 0 ? "#F6F7ED" : "var(--foreground)", borderColor: i === 0 ? "#001F3F" : "var(--border)" }}>{o}</button>
+                          <button key={o} className="px-3 py-1.5 rounded-xl border transition-colors" style={{ fontSize: "0.78rem", fontWeight: i === 0 ? 600 : 400, background: i === 0 ? "var(--ink)" : "var(--secondary)", color: i === 0 ? "var(--ink-inverse)" : "var(--foreground)", borderColor: i === 0 ? "var(--ink)" : "var(--border)" }}>{o}</button>
                         ))}
                       </div>
                     </div>
                   ))}
-                  <button onClick={triggerCreate} className="w-full py-2.5 rounded-xl transition-all" style={{ background: "#001F3F", color: "#DBE64C", fontSize: "0.9rem", fontWeight: 700 }}>
+                  <button onClick={triggerCreate} className="w-full py-2.5 rounded-xl transition-all" style={{ background: "var(--btn-brand-bg)", color: "var(--btn-brand-fg)", fontSize: "0.9rem", fontWeight: 700 }}>
                     {creating ? "Creating…" : created ? "✓ Video created" : "Create video"}
                   </button>
                 </>
@@ -1132,14 +1132,14 @@ function BridgeStudio({
               {panelState === "create-doc" && (
                 <>
                   <div className="flex items-center gap-2 p-3 rounded-xl" style={{ background: "rgba(30,72,143,0.06)", border: "1.5px solid rgba(30,72,143,0.2)" }}>
-                    <FileText size={14} style={{ color: "#1E488F" }} />
-                    <span style={{ fontSize: "0.825rem", fontWeight: 600, color: "#1E488F" }}>Combined Document</span>
+                    <FileText size={14} style={{ color: "var(--status-info)" }} />
+                    <span style={{ fontSize: "0.825rem", fontWeight: 600, color: "var(--status-info)" }}>Combined Document</span>
                   </div>
                   <div>
                     <p style={{ fontSize: "0.7rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--muted-foreground)", marginBottom: 8 }}>Source scope</p>
                     <div className="flex flex-wrap gap-1.5">
                       {["All sources","Selected sources"].map((o, i) => (
-                        <button key={o} className="px-3 py-1.5 rounded-xl border transition-colors" style={{ fontSize: "0.78rem", fontWeight: i === 0 ? 600 : 400, background: i === 0 ? "#001F3F" : "var(--secondary)", color: i === 0 ? "#F6F7ED" : "var(--foreground)", borderColor: i === 0 ? "#001F3F" : "var(--border)" }}>{o}</button>
+                        <button key={o} className="px-3 py-1.5 rounded-xl border transition-colors" style={{ fontSize: "0.78rem", fontWeight: i === 0 ? 600 : 400, background: i === 0 ? "var(--ink)" : "var(--secondary)", color: i === 0 ? "var(--ink-inverse)" : "var(--foreground)", borderColor: i === 0 ? "var(--ink)" : "var(--border)" }}>{o}</button>
                       ))}
                     </div>
                   </div>
@@ -1147,11 +1147,11 @@ function BridgeStudio({
                     <p style={{ fontSize: "0.7rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--muted-foreground)", marginBottom: 8 }}>Format</p>
                     <div className="flex flex-col gap-1.5">
                       {["Handoff brief","Study guide","Research synthesis","Meeting summary","Client explanation","Working notes"].map((o, i) => (
-                        <button key={o} className="w-full text-left px-3 py-2 rounded-xl border transition-colors" style={{ fontSize: "0.8rem", fontWeight: i === 0 ? 600 : 400, background: i === 0 ? "#001F3F" : "var(--secondary)", color: i === 0 ? "#F6F7ED" : "var(--foreground)", borderColor: i === 0 ? "#001F3F" : "var(--border)" }}>{o}</button>
+                        <button key={o} className="w-full text-left px-3 py-2 rounded-xl border transition-colors" style={{ fontSize: "0.8rem", fontWeight: i === 0 ? 600 : 400, background: i === 0 ? "var(--ink)" : "var(--secondary)", color: i === 0 ? "var(--ink-inverse)" : "var(--foreground)", borderColor: i === 0 ? "var(--ink)" : "var(--border)" }}>{o}</button>
                       ))}
                     </div>
                   </div>
-                  <button onClick={triggerCreate} className="w-full py-2.5 rounded-xl transition-all" style={{ background: "#001F3F", color: "#DBE64C", fontSize: "0.9rem", fontWeight: 700 }}>
+                  <button onClick={triggerCreate} className="w-full py-2.5 rounded-xl transition-all" style={{ background: "var(--btn-brand-bg)", color: "var(--btn-brand-fg)", fontSize: "0.9rem", fontWeight: 700 }}>
                     {creating ? "Creating…" : created ? "✓ Document created" : "Create document"}
                   </button>
                 </>
@@ -1225,7 +1225,8 @@ export function WorkspaceCanvas({ onAnnotate }: WorkspaceCanvasProps) {
         <div
           className="absolute inset-0 overflow-auto"
           style={{
-            backgroundImage: `radial-gradient(circle at 1px 1px, var(--border) 1px, transparent 0)`,
+            background: "var(--canvas-bg)",
+            backgroundImage: `radial-gradient(circle at 1px 1px, var(--canvas-dot) 1px, transparent 0)`,
             backgroundSize: "24px 24px",
           }}
           onClick={handleCanvasClick}
@@ -1253,7 +1254,7 @@ export function WorkspaceCanvas({ onAnnotate }: WorkspaceCanvasProps) {
                 initial={{ opacity: 0 }} animate={{ opacity: 1 }}
                 onClick={(e) => { e.stopPropagation(); setStudioOpen(true); setPanelState("default"); }}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border hover:bg-secondary transition-colors"
-                style={{ fontSize: "0.775rem", fontWeight: 600, color: studioOpen ? "#001F3F" : "var(--muted-foreground)", background: studioOpen ? "#DBE64C" : "var(--card)" }}
+                style={{ fontSize: "0.775rem", fontWeight: 600, color: studioOpen ? "var(--foreground)" : "var(--muted-foreground)", background: studioOpen ? "#DBE64C" : "var(--card)" }}
               >
                 <Lightbulb size={12} />
                 Studio

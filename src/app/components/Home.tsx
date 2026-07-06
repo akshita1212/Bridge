@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "motion/react";
+import { api, timeAgo, type ApiBridge } from "../lib/api";
 import {
   Home as HomeIcon, Clock, Users, Folder, Library, FileText, Settings,
   Search, Plus, Sun, Moon, Bell, ChevronDown, Grid3X3, List,
@@ -28,12 +29,12 @@ interface BridgeFile {
 }
 
 const STATUS_STYLES: Record<StatusChip, { bg: string; text: string }> = {
-  Draft: { bg: "rgba(0,31,63,0.08)", text: "#5C6B5A" },
-  Processing: { bg: "rgba(30,72,143,0.12)", text: "#1E488F" },
-  Ready: { bg: "rgba(0,128,76,0.12)", text: "#00804C" },
-  Shared: { bg: "rgba(219,230,76,0.35)", text: "#4A5200" },
-  "Needs clarity": { bg: "rgba(192,57,43,0.1)", text: "#C0392B" },
-  Understood: { bg: "rgba(116,195,101,0.2)", text: "#2D7A20" },
+  Draft: { bg: "var(--status-neutral-soft)", text: "var(--status-neutral)" },
+  Processing: { bg: "var(--status-info-soft)", text: "var(--status-info)" },
+  Ready: { bg: "var(--status-positive-soft)", text: "var(--status-positive)" },
+  Shared: { bg: "var(--status-warn-soft)", text: "var(--accent-strong)" },
+  "Needs clarity": { bg: "var(--status-danger-soft)", text: "var(--status-danger)" },
+  Understood: { bg: "var(--status-positive-soft)", text: "var(--status-positive)" },
 };
 
 const BRIDGES: BridgeFile[] = [
@@ -152,8 +153,8 @@ function BridgeCard({ file, onOpen }: { file: BridgeFile; onOpen: () => void }) 
           <div className="absolute inset-0 flex items-center justify-center gap-2" style={{ background: "rgba(0,0,0,0.04)" }}>
             <button
               onClick={(e) => { e.stopPropagation(); onOpen(); }}
-              className="px-4 py-1.5 rounded-lg text-white transition-all hover:opacity-90"
-              style={{ background: "#001F3F", fontSize: "0.8rem", fontWeight: 600 }}
+              className="px-4 py-1.5 rounded-lg transition-all hover:opacity-90"
+              style={{ background: "var(--ink)", color: "var(--ink-inverse)", fontSize: "0.8rem", fontWeight: 600 }}
             >
               Open
             </button>
@@ -211,13 +212,55 @@ function BridgeCard({ file, onOpen }: { file: BridgeFile; onOpen: () => void }) 
   );
 }
 
+function toBridgeFile(b: ApiBridge): BridgeFile {
+  const status: StatusChip =
+    (b.source_count ?? 0) === 0 ? "Draft"
+    : (b.open_questions ?? 0) > 0 ? "Needs clarity"
+    : (b.open_tasks ?? 0) > 0 ? "Processing"
+    : "Ready";
+  return {
+    id: b.id,
+    title: b.title,
+    subtitle: b.subtitle || `${b.source_count ?? 0} sources`,
+    lastEdited: timeAgo(b.updated_at),
+    collaborators: [],
+    sourceCount: b.source_count ?? 0,
+    status,
+    color: b.color,
+    starred: Boolean(b.starred),
+  };
+}
+
 export function Home({ theme, onToggleTheme, onNavigate }: Props) {
   const [activeNav, setActiveNav] = useState("home");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [search, setSearch] = useState("");
+  const [bridges, setBridges] = useState<BridgeFile[] | null>(null);
+  const [apiDown, setApiDown] = useState(false);
+  const [creating, setCreating] = useState(false);
   const isDark = theme === "dark";
 
-  const filtered = BRIDGES.filter((b) =>
+  useEffect(() => {
+    api.listBridges()
+      .then((rows) => { setBridges(rows.map(toBridgeFile)); setApiDown(false); })
+      .catch(() => { setBridges(BRIDGES); setApiDown(true); });
+  }, []);
+
+  const createBridge = async () => {
+    if (creating) return;
+    setCreating(true);
+    try {
+      const bridge = await api.createBridge("Untitled Bridge");
+      onNavigate("canvas", bridge.id);
+    } catch {
+      onNavigate("canvas", "new");
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const list = bridges ?? [];
+  const filtered = list.filter((b) =>
     `${b.title} ${b.subtitle}`.toLowerCase().includes(search.toLowerCase())
   );
 
@@ -275,7 +318,7 @@ export function Home({ theme, onToggleTheme, onNavigate }: Props) {
 
         {/* Profile */}
         <div className="px-3 py-3 border-t border-sidebar-border flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-full flex items-center justify-center" style={{ background: "#001F3F", fontSize: "0.65rem", fontWeight: 700, color: "#fff" }}>
+          <div className="w-7 h-7 rounded-full flex items-center justify-center" style={{ background: "var(--ink)", fontSize: "0.65rem", fontWeight: 700, color: "var(--ink-inverse)" }}>
             JC
           </div>
           <div className="flex-1 min-w-0">
@@ -329,9 +372,9 @@ export function Home({ theme, onToggleTheme, onNavigate }: Props) {
               {isDark ? <Sun size={15} /> : <Moon size={15} />}
             </button>
             <button
-              onClick={() => onNavigate("canvas", "new")}
+              onClick={createBridge}
               className="flex items-center gap-1.5 px-4 py-2 rounded-xl transition-all hover:opacity-90"
-              style={{ background: "#001F3F", color: isDark ? "#001F3F" : "#F6F7ED", fontSize: "0.875rem", fontWeight: 600 }}
+              style={{ background: "var(--primary)", color: "var(--primary-foreground)", fontSize: "0.875rem", fontWeight: 600 }}
             >
               <Plus size={15} />
               New Bridge
@@ -341,13 +384,19 @@ export function Home({ theme, onToggleTheme, onNavigate }: Props) {
 
         {/* Content */}
         <main className="flex-1 overflow-y-auto px-6 py-6">
+          {apiDown && (
+            <div className="mb-6 px-4 py-3 rounded-xl border flex items-center gap-2.5" style={{ background: "var(--status-warn-soft)", borderColor: "var(--border)", fontSize: "0.8rem", color: "var(--accent-strong)", fontWeight: 500 }}>
+              <Bell size={13} />
+              Local API not running — showing demo data. Start it with <code style={{ fontFamily: "var(--font-mono)", fontWeight: 700 }}>npm run dev</code> (runs UI + API together).
+            </div>
+          )}
           {/* New Bridge card + section heading */}
           <section className="mb-8">
             <h3 className="mb-4" style={{ fontWeight: 700, fontSize: "1rem" }}>Start something new</h3>
             <motion.button
               whileHover={{ scale: 1.01 }}
               whileTap={{ scale: 0.99 }}
-              onClick={() => onNavigate("canvas", "new")}
+              onClick={createBridge}
               className="flex items-center gap-4 p-5 rounded-2xl border-2 border-dashed border-border hover:border-foreground transition-all group"
               style={{ background: "var(--card)", width: "100%", maxWidth: 320 }}
             >
@@ -371,7 +420,17 @@ export function Home({ theme, onToggleTheme, onNavigate }: Props) {
               <button style={{ fontSize: "0.8125rem", color: "var(--muted-foreground)" }}>See all</button>
             </div>
 
-            {viewMode === "grid" ? (
+            {bridges !== null && filtered.length === 0 ? (
+              <div className="flex flex-col items-center justify-center gap-3 py-16 rounded-2xl border-2 border-dashed border-border text-center">
+                <div className="w-11 h-11 rounded-xl flex items-center justify-center" style={{ background: "var(--secondary)" }}>
+                  <GitBranch size={18} style={{ color: "var(--muted-foreground)" }} />
+                </div>
+                <p style={{ fontWeight: 700, fontSize: "0.95rem" }}>{search ? "No bridges match your search" : "No bridges yet"}</p>
+                <p style={{ fontSize: "0.82rem", color: "var(--muted-foreground)", maxWidth: 300, lineHeight: 1.55 }}>
+                  {search ? "Try a different search term." : "Create your first Bridge and drop in documents, links, and notes."}
+                </p>
+              </div>
+            ) : viewMode === "grid" ? (
               <div className="grid gap-4" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))" }}>
                 {filtered.map((file, i) => (
                   <motion.div

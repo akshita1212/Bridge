@@ -88,7 +88,7 @@ export function Landing({ theme, onToggleTheme, onNavigate }: Props) {
           <button
             onClick={() => onNavigate("auth")}
             className="flex items-center gap-1.5 px-4 py-2 rounded-lg transition-all hover:opacity-90"
-            style={{ background: "#001F3F", color: "#F6F7ED", fontSize: "0.875rem", fontWeight: 500 }}
+            style={{ background: "var(--primary)", color: "var(--primary-foreground)", fontSize: "0.875rem", fontWeight: 500 }}
           >
             Start a Bridge
             <ArrowRight size={14} />
@@ -114,7 +114,7 @@ export function Landing({ theme, onToggleTheme, onNavigate }: Props) {
 
           <h1 className="mb-5" style={{ fontSize: "clamp(2.25rem, 5vw, 3.5rem)", fontWeight: 700, lineHeight: 1.1, letterSpacing: "-0.03em", color: "var(--foreground)" }}>
             Bridge makes scattered<br />
-            <span style={{ color: "#00804C" }}>context simple.</span>
+            <span style={{ color: "var(--status-positive)" }}>context simple.</span>
           </h1>
 
           <p className="mb-10 max-w-lg mx-auto" style={{ fontSize: "1.0625rem", lineHeight: 1.65, color: "var(--muted-foreground)", fontWeight: 400 }}>
@@ -125,7 +125,7 @@ export function Landing({ theme, onToggleTheme, onNavigate }: Props) {
             <button
               onClick={() => onNavigate("auth")}
               className="flex items-center gap-2 px-6 py-3 rounded-xl transition-all hover:opacity-90 active:scale-[0.98]"
-              style={{ background: "#001F3F", color: "#F6F7ED", fontWeight: 600, fontSize: "0.9375rem" }}
+              style={{ background: "var(--primary)", color: "var(--primary-foreground)", fontWeight: 600, fontSize: "0.9375rem" }}
             >
               Start a Bridge
               <ArrowRight size={15} />
