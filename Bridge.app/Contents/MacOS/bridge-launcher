@@ -1,0 +1,42 @@
+#!/bin/zsh
+# Bridge.app launcher — starts the local Bridge server (API + built UI on one
+# port) and opens it in an app-style window. Safe to run repeatedly: if the
+# server is already up it just opens the window.
+
+BRIDGE_DIR="/Users/akshatsharma/Downloads/Bridge"
+PORT=8787
+URL="http://127.0.0.1:${PORT}"
+LOG="$BRIDGE_DIR/data/bridge-app.log"
+
+# Find node (launchd apps don't get your shell PATH)
+export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
+NODE_BIN="$(command -v node)"
+if [[ -z "$NODE_BIN" ]]; then
+  osascript -e 'display alert "Bridge" message "Node.js was not found. Install Node 22+ from nodejs.org and try again."'
+  exit 1
+fi
+
+cd "$BRIDGE_DIR" || exit 1
+mkdir -p data
+
+# Build the UI once if it's missing
+if [[ ! -f dist/index.html ]]; then
+  osascript -e 'display notification "First run: building the Bridge UI…" with title "Bridge"'
+  npm run build >> "$LOG" 2>&1
+fi
+
+# Start the server if it isn't already running
+if ! curl -s -o /dev/null "$URL/api/health"; then
+  nohup "$NODE_BIN" server/index.mjs >> "$LOG" 2>&1 &
+  for i in {1..30}; do
+    curl -s -o /dev/null "$URL/api/health" && break
+    sleep 0.3
+  done
+fi
+
+# Open as an app window (Chrome app mode → Safari/default browser fallback)
+if [[ -d "/Applications/Google Chrome.app" ]]; then
+  open -na "Google Chrome" --args --app="$URL" --user-data-dir="$HOME/.bridge-chrome-profile"
+else
+  open "$URL"
+fi

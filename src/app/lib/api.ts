@@ -78,6 +78,7 @@ export interface BridgeState {
   tasks: ApiTask[];
   questions: ApiQuestion[];
   activity: ApiActivity[];
+  positions?: Record<string, { x: number; y: number }>;
 }
 
 export interface MapCard {
@@ -101,6 +102,12 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 export const api = {
   health: () => request<{ ok: boolean }>("/api/health"),
+  aiStatus: () => request<{ configured: boolean; model: string | null }>("/api/ai/status"),
+  ask: (bridgeId: string, question: string) =>
+    request<{ answer: string; sources: { ref: number; id: string; title: string }[] }>(`/api/bridges/${bridgeId}/ask`, {
+      method: "POST",
+      body: JSON.stringify({ question }),
+    }),
 
   listBridges: () => request<{ bridges: ApiBridge[] }>("/api/bridges").then((r) => r.bridges),
   createBridge: (title: string, subtitle = "") =>

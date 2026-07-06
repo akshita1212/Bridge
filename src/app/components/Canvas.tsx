@@ -504,6 +504,7 @@ function ContentSourcesPanel({
   liveSources,
   onAnalyzeSource,
   onDeleteSource,
+  onAddSource,
 }: {
   open: boolean;
   onToggle: () => void;
@@ -512,6 +513,7 @@ function ContentSourcesPanel({
   liveSources?: ApiSource[];
   onAnalyzeSource?: (id: string) => Promise<void> | void;
   onDeleteSource?: (id: string) => Promise<void> | void;
+  onAddSource?: () => void;
 }) {
   const [ctxMenu, setCtxMenu] = useState<{ id: string; x: number; y: number } | null>(null);
   const [analyzing, setAnalyzing] = useState<string | null>(null);
@@ -563,7 +565,7 @@ function ContentSourcesPanel({
             </div>
 
             <div className="px-3 py-3 border-b border-sidebar-border flex-shrink-0">
-              <button onClick={() => setShowConnect(true)} className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border border-border hover:bg-secondary transition-colors" style={{ fontSize: "0.78rem", fontWeight: 700, color: "var(--foreground)", background: "var(--card)" }}>
+              <button onClick={() => (onAddSource ? onAddSource() : setShowConnect(true))} className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border border-border hover:bg-secondary transition-colors" style={{ fontSize: "0.78rem", fontWeight: 700, color: "var(--foreground)", background: "var(--card)" }}>
                 <Plus size={12} />Connect source
               </button>
             </div>
@@ -575,7 +577,7 @@ function ContentSourcesPanel({
                     <Upload size={16} style={{ color: "var(--muted-foreground)" }} />
                   </div>
                   <p style={{ fontSize: "0.82rem", fontWeight: 750, marginBottom: 4 }}>No sources yet</p>
-                  <p style={{ fontSize: "0.74rem", color: "var(--muted-foreground)", lineHeight: 1.5 }}>Use the bottom actions to add files, links, notes, audio, or video.</p>
+                  <p style={{ fontSize: "0.74rem", color: "var(--muted-foreground)", lineHeight: 1.5 }}>Drop files anywhere, or use Connect source / the bottom actions.</p>
                 </div>
               ) : (
                 <div className="flex flex-col gap-2.5">
@@ -2761,6 +2763,111 @@ function MoreMenu({ mode, onClose, onSelect }: { mode: WorkspaceMode; onClose: (
 
 // ─── Main Canvas ─────────────────────────────────────────────────────────────
 
+// ─── Ask Bridge (live) ───────────────────────────────────────────────────────
+// Chat grounded in this bridge's real sources, answered by the local API.
+
+function AskBridgeModal({ bridgeId, onClose }: { bridgeId: string; onClose: () => void }) {
+  const [messages, setMessages] = useState<{ role: "user" | "bridge"; text: string }[]>([]);
+  const [input, setInput] = useState("");
+  const [busy, setBusy] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
+  }, [messages, busy]);
+
+  const send = async () => {
+    const q = input.trim();
+    if (!q || busy) return;
+    setInput("");
+    setMessages((m) => [...m, { role: "user", text: q }]);
+    setBusy(true);
+    try {
+      const res = await api.ask(bridgeId, q);
+      setMessages((m) => [...m, { role: "bridge", text: res.answer }]);
+    } catch (err) {
+      setMessages((m) => [...m, { role: "bridge", text: `⚠ ${err instanceof Error ? err.message : "Something went wrong."}` }]);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <>
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-40" style={{ background: "rgba(0,0,0,0.2)", backdropFilter: "blur(2px)" }} onClick={onClose} />
+      <motion.div
+        initial={{ opacity: 0, y: 16, scale: 0.98 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        exit={{ opacity: 0, y: 12, scale: 0.98 }}
+        transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+        className="fixed bottom-24 right-6 z-50 w-[420px] rounded-2xl border border-border overflow-hidden flex flex-col"
+        style={{ background: "var(--card)", boxShadow: "var(--shadow-xl)", height: "min(65vh, 560px)" }}
+      >
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border flex-shrink-0">
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ background: "var(--accent)" }}>
+              <MessageCircle size={12} style={{ color: "var(--accent-foreground)" }} />
+            </div>
+            <p style={{ fontWeight: 700, fontSize: "0.875rem" }}>Ask Bridge</p>
+            <span style={{ fontSize: "0.65rem", color: "var(--muted-foreground)" }}>grounded in this Bridge's sources</span>
+          </div>
+          <button onClick={onClose} className="hover:bg-secondary rounded-lg p-1 transition-colors" style={{ color: "var(--muted-foreground)" }}><X size={13} /></button>
+        </div>
+
+        <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-3">
+          {messages.length === 0 && (
+            <div className="flex flex-col items-center justify-center gap-2 h-full text-center px-6">
+              <p style={{ fontSize: "0.85rem", fontWeight: 700 }}>Ask anything about your sources</p>
+              <p style={{ fontSize: "0.75rem", color: "var(--muted-foreground)", lineHeight: 1.55 }}>
+                "What are the main themes across my chapters?" · "Where do source 1 and 2 disagree?" · "Draft an outline from these notes."
+              </p>
+            </div>
+          )}
+          {messages.map((m, i) => (
+            <div key={i} className={m.role === "user" ? "self-end" : "self-start"} style={{ maxWidth: "88%" }}>
+              <div
+                className="px-3.5 py-2.5 rounded-2xl"
+                style={m.role === "user"
+                  ? { background: "var(--btn-brand-bg)", color: "var(--btn-brand-fg)", fontSize: "0.84rem", lineHeight: 1.5, borderBottomRightRadius: 6 }
+                  : { background: "var(--secondary)", color: "var(--foreground)", fontSize: "0.84rem", lineHeight: 1.6, whiteSpace: "pre-wrap", borderBottomLeftRadius: 6 }}
+              >
+                {m.text}
+              </div>
+            </div>
+          ))}
+          {busy && (
+            <div className="self-start flex items-center gap-2 px-3.5 py-2.5 rounded-2xl" style={{ background: "var(--secondary)" }}>
+              {[0, 1, 2].map((i) => (
+                <span key={i} className="w-1.5 h-1.5 rounded-full animate-bounce inline-block" style={{ background: "var(--muted-foreground)", animationDelay: `${i * 0.15}s` }} />
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="px-3 py-3 border-t border-border flex gap-2 flex-shrink-0">
+          <input
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && send()}
+            placeholder="Ask about your sources…"
+            autoFocus
+            className="flex-1 px-3.5 py-2 rounded-xl border border-border outline-none"
+            style={{ fontSize: "0.875rem", background: "var(--input-background)" }}
+          />
+          <button
+            onClick={send}
+            disabled={busy || !input.trim()}
+            className="px-4 py-2 rounded-xl transition-all hover:opacity-90 disabled:opacity-40"
+            style={{ background: "var(--btn-brand-bg)", color: "var(--btn-brand-fg)", fontSize: "0.85rem", fontWeight: 700 }}
+          >
+            Ask
+          </button>
+        </div>
+      </motion.div>
+    </>
+  );
+}
+
 // ─── Live Source Viewer ──────────────────────────────────────────────────────
 // Opens a persisted source from the local API: PDFs and images render inline,
 // audio/video get players, text shows extracted content, links open out.
@@ -2898,6 +3005,9 @@ export function Canvas({ theme, onToggleTheme, onNavigate, canvasId }: Props) {
   const [live, setLive] = useState<BridgeState | null>(null);
   const [liveCards, setLiveCards] = useState<MapCard[] | null>(null);
   const [liveSourceView, setLiveSourceView] = useState<ApiSource | null>(null);
+  const [askOpen, setAskOpen] = useState(false);
+  const [aiModel, setAiModel] = useState<string | null>(null);
+  useEffect(() => { api.aiStatus().then((st) => setAiModel(st.configured ? st.model : null)).catch(() => setAiModel(null)); }, []);
 
   const refreshLive = async () => {
     try {
@@ -2978,11 +3088,21 @@ export function Canvas({ theme, onToggleTheme, onNavigate, canvasId }: Props) {
     closeAction();
     setProcessingMsg("Reading new source…");
     try {
+      const uploaded = [];
       for (const file of Array.from(files)) {
-        await api.uploadFile(canvasId, file);
+        uploaded.push(await api.uploadFile(canvasId, file));
       }
       await refreshLive();
-      addToast(`${files.length > 1 ? `${files.length} sources` : "Source"} added — Map updated`);
+      setProcessingMsg("Analyzing sources…");
+      const results = await Promise.allSettled(uploaded.map((s) => api.analyzeSource(s.id)));
+      const failed = results.filter((r) => r.status === "rejected");
+      await refreshLive();
+      if (failed.length) {
+        const reason = failed[0] as PromiseRejectedResult;
+        addToast(`Added, but analysis failed — ${reason.reason instanceof Error ? reason.reason.message : "check the AI setup"}`);
+      } else {
+        addToast(`${files.length > 1 ? `${files.length} sources` : "Source"} added — understanding updated`);
+      }
       setProcessingMsg("Map refreshed");
     } catch (err) {
       addToast(`Upload failed — ${err instanceof Error ? err.message : "unknown error"}`);
@@ -3125,9 +3245,42 @@ export function Canvas({ theme, onToggleTheme, onNavigate, canvasId }: Props) {
   };
 
   const activeMode = MODE_ITEMS.find((m) => m.id === mode)!;
+  const [dragDepth, setDragDepth] = useState(0);
 
   return (
-    <div className={`h-screen flex flex-col bg-background overflow-hidden ${SPACE_CLASS[mode]}`} style={{ fontFamily: "var(--font-sans)" }}>
+    <div
+      className={`h-screen flex flex-col bg-background overflow-hidden ${SPACE_CLASS[mode]}`}
+      style={{ fontFamily: "var(--font-sans)" }}
+      onDragEnter={(e) => { if (isLive && e.dataTransfer.types.includes("Files")) { e.preventDefault(); setDragDepth((d) => d + 1); } }}
+      onDragOver={(e) => { if (isLive && e.dataTransfer.types.includes("Files")) e.preventDefault(); }}
+      onDragLeave={(e) => { if (isLive) { e.preventDefault(); setDragDepth((d) => Math.max(0, d - 1)); } }}
+      onDrop={(e) => {
+        if (!isLive) return;
+        e.preventDefault();
+        setDragDepth(0);
+        if (e.dataTransfer.files.length) liveUploadFiles(e.dataTransfer.files);
+      }}
+    >
+      {/* Full-screen drop overlay */}
+      <AnimatePresence>
+        {isLive && dragDepth > 0 && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[60] flex items-center justify-center pointer-events-none"
+            style={{ background: "rgba(0,0,0,0.25)", backdropFilter: "blur(3px)" }}
+          >
+            <div className="flex flex-col items-center gap-3 px-10 py-8 rounded-3xl border-2 border-dashed" style={{ background: "var(--card)", borderColor: "var(--ring)", boxShadow: "var(--shadow-xl)" }}>
+              <div className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: "var(--accent)" }}>
+                <Upload size={20} style={{ color: "var(--accent-foreground)" }} />
+              </div>
+              <p style={{ fontWeight: 800, fontSize: "1.05rem" }}>Drop to add to this Bridge</p>
+              <p style={{ fontSize: "0.8rem", color: "var(--muted-foreground)" }}>PDF, text, images, audio, video — Bridge will read what it can</p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
       {/* ── Top bar ── */}
       <header
         className="flex items-center gap-3 px-4 py-2.5 border-b flex-shrink-0"
@@ -3283,6 +3436,7 @@ export function Canvas({ theme, onToggleTheme, onNavigate, canvasId }: Props) {
           liveSources={isLive ? live.sources : undefined}
           onAnalyzeSource={isLive ? liveAnalyzeSource : undefined}
           onDeleteSource={isLive ? liveDeleteSource : undefined}
+          onAddSource={isLive ? () => setActiveAction("upload") : undefined}
         />
 
         {/* Center content — tinted with the active space's accent */}
@@ -3321,7 +3475,15 @@ export function Canvas({ theme, onToggleTheme, onNavigate, canvasId }: Props) {
               )}
               {mode === "workspace" && (
                 <div className="flex-1 flex flex-col overflow-hidden">
-                  <WorkspaceCanvas onAnnotate={handleAnnotate} />
+                  <WorkspaceCanvas
+                    onAnnotate={handleAnnotate}
+                    liveSources={isLive ? live.sources : undefined}
+                    liveNotes={isLive ? live.notes : undefined}
+                    livePositions={isLive ? live.positions : undefined}
+                    bridgeTitle={isLive ? live.bridge.title : undefined}
+                    onOpenSource={isLive ? handleContentSourceOpen : undefined}
+                    onSavePosition={isLive ? (id, x, y) => { fetch(`/api/bridges/${canvasId}/positions`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ itemId: id, x, y }) }).catch(() => {}); } : undefined}
+                  />
                 </div>
               )}
               {mode === "work" && (
@@ -3362,6 +3524,24 @@ export function Canvas({ theme, onToggleTheme, onNavigate, canvasId }: Props) {
           )}
         </AnimatePresence>
       </div>
+
+      {/* Ask Bridge — floating entry point for live bridges */}
+      {isLive && !isEmpty && !askOpen && (
+        <motion.button
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          onClick={() => setAskOpen(true)}
+          className="fixed bottom-24 right-6 z-30 flex items-center gap-2 px-4 py-2.5 rounded-full transition-all hover:scale-105"
+          style={{ background: "var(--btn-brand-bg)", color: "var(--btn-brand-fg)", fontSize: "0.85rem", fontWeight: 800, boxShadow: "var(--shadow-lg)" }}
+        >
+          <MessageCircle size={14} />
+          Ask Bridge
+          {!aiModel && <span title="Add GEMINI_API_KEY to .env for real answers" className="w-1.5 h-1.5 rounded-full" style={{ background: "var(--status-danger)" }} />}
+        </motion.button>
+      )}
+      <AnimatePresence>
+        {askOpen && isLive && <AskBridgeModal bridgeId={canvasId} onClose={() => setAskOpen(false)} />}
+      </AnimatePresence>
 
       <AnimatePresence>
         {liveSourceView && (

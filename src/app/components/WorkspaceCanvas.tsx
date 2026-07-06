@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import {
   FileText, Video, AudioLines, Image, Globe, StickyNote,
@@ -7,10 +7,19 @@ import {
   Download, Share2, Film, BookOpen, Pin, ChevronRight,
 } from "lucide-react";
 
+import { parseSummary, type ApiSource, type ApiNote } from "../lib/api";
+
 type RightPanelState = "default" | "source" | "output" | "ask" | "create-audio" | "create-video" | "create-doc";
 
 interface WorkspaceCanvasProps {
   onAnnotate: (msg: string) => void;
+  /** Live mode: this bridge's real content. When set, demo nodes are hidden. */
+  liveSources?: ApiSource[];
+  liveNotes?: ApiNote[];
+  livePositions?: Record<string, { x: number; y: number }>;
+  bridgeTitle?: string;
+  onOpenSource?: (id: string) => void;
+  onSavePosition?: (id: string, x: number, y: number) => void;
 }
 
 // ─── Default positions ────────────────────────────────────────────────────────
@@ -1166,8 +1175,90 @@ function BridgeStudio({
 
 // ─── Main Export ──────────────────────────────────────────────────────────────
 
-export function WorkspaceCanvas({ onAnnotate }: WorkspaceCanvasProps) {
+const LIVE_NODE_COLORS: Record<string, string> = {
+  pdf: "#1E488F", doc: "#1E488F", text: "#5C7AA6", image: "#8A9300",
+  audio: "#74C365", video: "#00804C", link: "#5C6B5A", note: "#8A9300",
+};
+const LIVE_NODE_ICONS: Record<string, React.ElementType> = {
+  pdf: FileText, doc: FileText, text: FileText, image: Image,
+  audio: AudioLines, video: Video, link: Globe, note: StickyNote,
+};
+
+function LiveSourceNode({ source, pos, selected, multiSelected, isDragging, onClick, onOpen, onDragStart }: {
+  source: ApiSource;
+  pos: { x: number; y: number };
+  selected: boolean;
+  multiSelected: boolean;
+  isDragging: boolean;
+  onClick: () => void;
+  onOpen: () => void;
+  onDragStart: (e: React.MouseEvent) => void;
+}) {
+  const [hovered, setHovered] = useState(false);
+  const color = LIVE_NODE_COLORS[source.type] || "#5C7AA6";
+  const Icon = LIVE_NODE_ICONS[source.type] || FileText;
+  const summary = parseSummary(source.summary);
+
+  return (
+    <NodeShell pos={pos} width={264} selected={selected} multiSelected={multiSelected} isDragging={isDragging} borderColor={color} hovered={hovered}
+      onMouseDown={onDragStart} onClick={(e) => { e.stopPropagation(); onClick(); }} onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>
+      <div className="p-3 flex flex-col gap-2">
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: color + "18" }}>
+              <Icon size={12} style={{ color }} />
+            </div>
+            <p className="truncate" style={{ fontSize: "0.78rem", fontWeight: 750, lineHeight: 1.25 }}>{source.title}</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <TypeChip label={source.type.toUpperCase()} color={color} />
+          {source.meta && <span style={{ fontSize: "0.62rem", color: "var(--muted-foreground)" }}>{source.meta}</span>}
+          {source.status === "needs-analysis" && (
+            <span style={{ fontSize: "0.58rem", fontWeight: 700, padding: "1px 6px", borderRadius: 99, background: "var(--status-warn-soft)", color: "var(--accent-strong)" }}>Needs analysis</span>
+          )}
+        </div>
+        {summary?.lead && (
+          <p style={{ fontSize: "0.7rem", lineHeight: 1.5, color: "var(--muted-foreground)", display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+            {summary.lead}
+          </p>
+        )}
+        {hovered && (
+          <button
+            onMouseDown={(e) => e.stopPropagation()}
+            onClick={(e) => { e.stopPropagation(); onOpen(); }}
+            className="w-full py-1.5 rounded-lg transition-all hover:opacity-90"
+            style={{ background: "var(--btn-brand-bg)", color: "var(--btn-brand-fg)", fontSize: "0.7rem", fontWeight: 800 }}
+          >
+            Open source
+          </button>
+        )}
+      </div>
+    </NodeShell>
+  );
+}
+
+export function WorkspaceCanvas({ onAnnotate, liveSources, liveNotes, livePositions, bridgeTitle, onOpenSource, onSavePosition }: WorkspaceCanvasProps) {
+  const isLiveCanvas = liveSources !== undefined;
   const [positions, setPositions] = useState({ ...DEFAULT_POS });
+
+  // Merge saved + auto-layout positions for live items whenever content changes.
+  useEffect(() => {
+    if (!isLiveCanvas) return;
+    setPositions((prev) => {
+      const next = { ...prev };
+      let autoIndex = 0;
+      const place = (id: string) => {
+        if (next[id]) return;
+        if (livePositions?.[id]) { next[id] = livePositions[id]; return; }
+        next[id] = { x: 56 + (autoIndex % 4) * 296, y: 80 + Math.floor(autoIndex / 4) * 240 };
+        autoIndex += 1;
+      };
+      for (const src of liveSources || []) place(src.id);
+      for (const n of liveNotes || []) place(`note-${n.id}`);
+      return next;
+    });
+  }, [isLiveCanvas, liveSources, liveNotes, livePositions]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [multiSelect, setMultiSelect] = useState(false);
   const [draggingId, setDraggingId] = useState<string | null>(null);
@@ -1193,6 +1284,11 @@ export function WorkspaceCanvas({ onAnnotate }: WorkspaceCanvasProps) {
   };
 
   const stopDrag = () => {
+    if (dragRef.current && isLiveCanvas && onSavePosition) {
+      const { id } = dragRef.current;
+      const p = positions[id];
+      if (p) onSavePosition(id, p.x, p.y);
+    }
     dragRef.current = null;
     setDraggingId(null);
   };
@@ -1239,9 +1335,50 @@ export function WorkspaceCanvas({ onAnnotate }: WorkspaceCanvasProps) {
             {/* Context Frame label */}
             <div style={{ position: "absolute", left: 24, top: 24, width: 1592, height: 712, border: "1.5px dashed var(--border)", borderRadius: 24, pointerEvents: "none" }}>
               <div style={{ position: "absolute", top: -11, left: 20, background: "var(--background)", padding: "2px 10px", borderRadius: 99, fontSize: "0.7rem", fontWeight: 700, color: "var(--muted-foreground)", letterSpacing: "0.04em", whiteSpace: "nowrap" }}>
-                Decision Gateway Context
+                {isLiveCanvas ? `${bridgeTitle || "This Bridge"} — private canvas` : "Decision Gateway Context"}
               </div>
             </div>
+
+            {/* Live nodes: this bridge's real sources and notes */}
+            {isLiveCanvas && (liveSources || []).map((src) => (
+              positions[src.id] && (
+                <LiveSourceNode
+                  key={src.id}
+                  source={src}
+                  pos={positions[src.id]}
+                  selected={selectedId === src.id}
+                  multiSelected={multiSelect}
+                  isDragging={draggingId === src.id}
+                  onClick={() => select(src.id)}
+                  onOpen={() => onOpenSource?.(src.id)}
+                  onDragStart={(e) => startDrag(src.id, e)}
+                />
+              )
+            ))}
+            {isLiveCanvas && (liveNotes || []).map((n) => (
+              positions[`note-${n.id}`] && (
+                <PostItNode
+                  key={n.id}
+                  id={`note-${n.id}`}
+                  pos={positions[`note-${n.id}`]}
+                  text={n.content}
+                  isPrivate={Boolean(n.is_private)}
+                  selected={selectedId === `note-${n.id}`}
+                  isDragging={draggingId === `note-${n.id}`}
+                  onClick={() => select(`note-${n.id}`)}
+                  onDragStart={(e) => startDrag(`note-${n.id}`, e)}
+                />
+              )
+            ))}
+            {isLiveCanvas && (liveSources || []).length === 0 && (liveNotes || []).length === 0 && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-center pointer-events-none">
+                <div className="w-11 h-11 rounded-xl flex items-center justify-center" style={{ background: "var(--secondary)" }}>
+                  <BookOpen size={18} style={{ color: "var(--muted-foreground)" }} />
+                </div>
+                <p style={{ fontWeight: 700, fontSize: "0.95rem" }}>Your private canvas is empty</p>
+                <p style={{ fontSize: "0.8rem", color: "var(--muted-foreground)", maxWidth: 300, lineHeight: 1.55 }}>Drop files anywhere or add sources and post-its from the bottom bar — they'll appear here as movable cards.</p>
+              </div>
+            )}
 
             {/* Floating toolbar on multi-select */}
             <AnimatePresence>
@@ -1272,7 +1409,8 @@ export function WorkspaceCanvas({ onAnnotate }: WorkspaceCanvasProps) {
               )}
             </div>
 
-            {/* Source nodes */}
+            {/* Demo nodes (prototype showcase — hidden for live bridges) */}
+            {!isLiveCanvas && (<>
             <div onContextMenu={e => { e.preventDefault(); e.stopPropagation(); setCtxMenu({ kind: "source", x: e.clientX, y: e.clientY }); }}>
               <PDFNode   pos={positions["pdf"]}   selected={selectedId === "pdf"}   multiSelected={multiSelect} isDragging={draggingId === "pdf"}
                 onClick={() => select("pdf")}   onAction={a => onAnnotate(`${a} — working…`)} onDragStart={e => startDrag("pdf", e)} />
@@ -1311,6 +1449,7 @@ export function WorkspaceCanvas({ onAnnotate }: WorkspaceCanvasProps) {
               <SessionNode     pos={positions["session"]}   selected={selectedId === "session"}   isDragging={draggingId === "session"}
                 onClick={() => select("session")} onDragStart={e => startDrag("session", e)} />
             </div>
+            </>)}
           </div>
         </div>
 

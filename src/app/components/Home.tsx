@@ -4,7 +4,7 @@ import { api, timeAgo, type ApiBridge } from "../lib/api";
 import {
   Home as HomeIcon, Clock, Users, Folder, Library, FileText, Settings,
   Search, Plus, Sun, Moon, Bell, ChevronDown, Grid3X3, List,
-  MoreHorizontal, GitBranch, Star, Trash2, Share2, Edit3
+  MoreHorizontal, GitBranch, Star, Trash2, Share2, Edit3, LogOut
 } from "lucide-react";
 import type { Page, Theme } from "../App";
 
@@ -319,12 +319,20 @@ export function Home({ theme, onToggleTheme, onNavigate }: Props) {
         {/* Profile */}
         <div className="px-3 py-3 border-t border-sidebar-border flex items-center gap-2.5">
           <div className="w-7 h-7 rounded-full flex items-center justify-center" style={{ background: "var(--ink)", fontSize: "0.65rem", fontWeight: 700, color: "var(--ink-inverse)" }}>
-            JC
+            AK
           </div>
           <div className="flex-1 min-w-0">
-            <p style={{ fontSize: "0.8rem", fontWeight: 600 }}>Jamie Chen</p>
-            <p style={{ fontSize: "0.7rem", color: "var(--muted-foreground)" }}>Pro plan</p>
+            <p style={{ fontSize: "0.8rem", fontWeight: 600 }}>Akshat</p>
+            <p style={{ fontSize: "0.7rem", color: "var(--muted-foreground)" }}>Local workspace</p>
           </div>
+          <button
+            onClick={() => onNavigate("landing")}
+            title="Sign out"
+            className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-sidebar-accent transition-colors"
+            style={{ color: "var(--muted-foreground)" }}
+          >
+            <LogOut size={13} />
+          </button>
         </div>
       </aside>
 

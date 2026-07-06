@@ -13,11 +13,26 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const DATA_DIR = path.join(__dirname, "..", "data");
+const ROOT_DIR = path.join(__dirname, "..");
+const DATA_DIR = path.join(ROOT_DIR, "data");
 const UPLOAD_DIR = path.join(DATA_DIR, "uploads");
+const DIST_DIR = path.join(ROOT_DIR, "dist");
 mkdirSync(UPLOAD_DIR, { recursive: true });
 
+/* Load .env from the repo root (no dependency needed). */
+function loadEnv() {
+  const envPath = path.join(ROOT_DIR, ".env");
+  if (!existsSync(envPath)) return;
+  for (const line of readFileSync(envPath, "utf8").split("\n")) {
+    const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*)\s*$/);
+    if (m && !process.env[m[1]]) process.env[m[1]] = m[2].replace(/^["']|["']$/g, "");
+  }
+}
+loadEnv();
+
 const PORT = Number(process.env.BRIDGE_API_PORT || 8787);
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
+const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
 const db = new DatabaseSync(path.join(DATA_DIR, "bridge.db"));
 
 db.exec(`
@@ -82,6 +97,12 @@ db.exec(`
     owner TEXT DEFAULT '',
     status TEXT NOT NULL DEFAULT 'Open',
     created_at TEXT NOT NULL
+  );
+  CREATE TABLE IF NOT EXISTS canvas_positions (
+    item_id TEXT PRIMARY KEY,
+    bridge_id TEXT NOT NULL REFERENCES bridges(id) ON DELETE CASCADE,
+    x REAL NOT NULL,
+    y REAL NOT NULL
   );
   CREATE TABLE IF NOT EXISTS activity (
     id TEXT PRIMARY KEY,
@@ -162,6 +183,119 @@ function extractPdfText(buffer) {
   }
 }
 
+/* ── Gemini AI ─────────────────────────────────────────────── */
+
+async function callGemini(parts, { json = false, maxTokens = 2048 } = {}) {
+  if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY is not configured. Add it to the .env file in the project root.");
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 90_000);
+  try {
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        signal: controller.signal,
+        body: JSON.stringify({
+          contents: [{ role: "user", parts }],
+          generationConfig: {
+            temperature: 0.3,
+            maxOutputTokens: maxTokens,
+            ...(json ? { responseMimeType: "application/json" } : {}),
+          },
+        }),
+      }
+    );
+    const data = await res.json();
+    if (!res.ok) throw new Error(data?.error?.message || `Gemini error ${res.status}`);
+    const text = data?.candidates?.[0]?.content?.parts?.map((p) => p.text || "").join("") || "";
+    if (!text) throw new Error("Gemini returned an empty response");
+    return text;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+const AI_MIMES = new Set([
+  "application/pdf", "image/png", "image/jpeg", "image/webp", "image/gif",
+  "audio/mpeg", "audio/mp3", "audio/wav", "audio/x-m4a", "audio/mp4",
+  "video/mp4", "video/quicktime", "video/webm",
+]);
+const AI_INLINE_LIMIT = 19 * 1024 * 1024; // Gemini inline-data cap (~20MB)
+
+/** Crude HTML → text for link sources. */
+async function fetchLinkText(url) {
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 15_000);
+    const res = await fetch(url, { signal: controller.signal, headers: { "user-agent": "Mozilla/5.0 (BridgeApp)" } });
+    clearTimeout(timer);
+    const html = await res.text();
+    return html
+      .replace(/<script[\s\S]*?<\/script>/gi, " ")
+      .replace(/<style[\s\S]*?<\/style>/gi, " ")
+      .replace(/<[^>]+>/g, " ")
+      .replace(/&[a-z#0-9]+;/gi, " ")
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, 30_000);
+  } catch {
+    return null;
+  }
+}
+
+const ANALYZE_PROMPT = `You are Bridge, an understanding assistant. Analyze the attached source and respond with STRICT JSON only (no markdown fences) in this shape:
+{
+  "lead": "2-3 sentence summary of what this source says",
+  "keywords": ["up to 6 topical keywords"],
+  "extract": "plain-text extraction or transcript of the source content, up to 4000 characters (for documents: the actual text; for media: what is said/shown)",
+  "insights": [
+    { "type": "main",       "title": "the single most important idea", "body": "1-2 sentences" },
+    { "type": "must-know",  "title": "...", "body": "..." },
+    { "type": "question",   "title": "an open question this source raises", "body": "why it matters" },
+    { "type": "decision",   "title": "...", "body": "..." },
+    { "type": "risk",       "title": "...", "body": "..." },
+    { "type": "action",     "title": "a concrete next action", "body": "..." }
+  ]
+}
+Rules: 2-6 insights total; only include types that genuinely apply; exactly one "main". Write in plain, specific language grounded in the source.`;
+
+/** Run Gemini analysis for a source row. Returns the summary object to store. */
+async function aiAnalyzeSource(source) {
+  const parts = [{ text: `${ANALYZE_PROMPT}\n\nSource title: ${source.title}` }];
+
+  if (source.type === "link" && source.url) {
+    const pageText = await fetchLinkText(source.url);
+    if (pageText) parts.push({ text: `Web page content of ${source.url}:\n\n${pageText}` });
+    else parts.push({ text: `The source is the web page at ${source.url}. Page could not be fetched; analyze based on the URL and what you reliably know about it, and say so in the lead.` });
+  } else if (source.text_content) {
+    parts.push({ text: `Source content:\n\n${source.text_content.slice(0, 100_000)}` });
+  } else if (source.file_path && existsSync(source.file_path)) {
+    const buffer = readFileSync(source.file_path);
+    const mime = source.mime || "application/octet-stream";
+    if (!AI_MIMES.has(mime)) throw new Error(`This file type (${mime}) can't be analyzed directly. Convert it to PDF or text.`);
+    if (buffer.length > AI_INLINE_LIMIT) throw new Error("File is over ~20MB — too large for direct AI analysis.");
+    parts.push({ inlineData: { mimeType: mime, data: buffer.toString("base64") } });
+  } else {
+    throw new Error("No content available to analyze.");
+  }
+
+  const raw = await callGemini(parts, { json: true, maxTokens: 4096 });
+  const cleaned = raw.replace(/^```(json)?/m, "").replace(/```\s*$/m, "").trim();
+  const parsed = JSON.parse(cleaned);
+  return {
+    lead: String(parsed.lead || "").slice(0, 800),
+    keywords: (parsed.keywords || []).slice(0, 6).map(String),
+    insights: (parsed.insights || []).slice(0, 6).map((i) => ({
+      type: ["main", "must-know", "question", "decision", "risk", "action"].includes(i.type) ? i.type : "must-know",
+      title: String(i.title || "").slice(0, 160),
+      body: String(i.body || "").slice(0, 500),
+    })),
+    extract: String(parsed.extract || "").slice(0, 8000),
+    ai: GEMINI_MODEL,
+  };
+}
+
 /* ── HTTP helpers ──────────────────────────────────────────── */
 
 function send(res, status, data, headers = {}) {
@@ -233,7 +367,11 @@ route("GET", /^\/api\/bridges\/([\w-]+)$/, (req, res, [id]) => {
   const tasks = db.prepare("SELECT * FROM tasks WHERE bridge_id = ? ORDER BY created_at ASC").all(id);
   const questions = db.prepare("SELECT * FROM questions WHERE bridge_id = ? ORDER BY created_at ASC").all(id);
   const activity = db.prepare("SELECT * FROM activity WHERE bridge_id = ? ORDER BY created_at DESC LIMIT 60").all(id);
-  send(res, 200, { bridge, sources, notes, tasks, questions, activity });
+  const positions = {};
+  for (const row of db.prepare("SELECT item_id, x, y FROM canvas_positions WHERE bridge_id = ?").all(id)) {
+    positions[row.item_id] = { x: row.x, y: row.y };
+  }
+  send(res, 200, { bridge, sources, notes, tasks, questions, activity, positions });
 });
 
 route("PATCH", /^\/api\/bridges\/([\w-]+)$/, async (req, res, [id]) => {
@@ -340,10 +478,30 @@ route("DELETE", /^\/api\/sources\/([\w-]+)$/, (req, res, [id]) => {
   send(res, 200, { ok: true });
 });
 
-/* Re-analyze a source (stub analysis; plug an LLM here later) */
-route("POST", /^\/api\/sources\/([\w-]+)\/analyze$/, (req, res, [id]) => {
+/* AI status — lets the UI show whether real analysis is available */
+route("GET", /^\/api\/ai\/status$/, (req, res) => {
+  send(res, 200, { configured: Boolean(GEMINI_API_KEY), model: GEMINI_API_KEY ? GEMINI_MODEL : null });
+});
+
+/* Re-analyze a source — Gemini when configured, extractive fallback otherwise */
+route("POST", /^\/api\/sources\/([\w-]+)\/analyze$/, async (req, res, [id]) => {
   const source = db.prepare("SELECT * FROM sources WHERE id = ?").get(id);
   if (!source) return send(res, 404, { error: "Source not found" });
+
+  if (GEMINI_API_KEY) {
+    try {
+      const result = await aiAnalyzeSource(source);
+      const newText = source.text_content || result.extract || null;
+      db.prepare("UPDATE sources SET summary = ?, text_content = ?, status = 'synced', updated_at = ? WHERE id = ?")
+        .run(JSON.stringify(result), newText, now(), id);
+      logActivity(source.bridge_id, "update", `Analyzed with ${GEMINI_MODEL} — ${source.title}`, "", id);
+      return send(res, 200, { source: db.prepare("SELECT id, type, title, summary, status, meta FROM sources WHERE id = ?").get(id) });
+    } catch (err) {
+      return send(res, 502, { error: `AI analysis failed: ${err instanceof Error ? err.message : "unknown error"}` });
+    }
+  }
+
+  // Fallback: dependency-free extractive summary
   let text = source.text_content;
   if (!text && source.file_path && existsSync(source.file_path) && source.type === "pdf") {
     text = extractPdfText(readFileSync(source.file_path));
@@ -355,29 +513,97 @@ route("POST", /^\/api\/sources\/([\w-]+)\/analyze$/, (req, res, [id]) => {
   send(res, 200, { source: db.prepare("SELECT id, type, title, summary, status, meta FROM sources WHERE id = ?").get(id) });
 });
 
-/* Map understanding — assembled from real sources */
+/* Ask Bridge — question answering grounded in this bridge's sources */
+route("POST", /^\/api\/bridges\/([\w-]+)\/ask$/, async (req, res, [bridgeId]) => {
+  const bridge = db.prepare("SELECT * FROM bridges WHERE id = ?").get(bridgeId);
+  if (!bridge) return send(res, 404, { error: "Bridge not found" });
+  const body = await readJson(req);
+  if (!body.question?.trim()) return send(res, 400, { error: "question is required" });
+
+  const sources = db.prepare("SELECT id, title, type, summary, text_content, url FROM sources WHERE bridge_id = ?").all(bridgeId);
+  if (sources.length === 0) return send(res, 400, { error: "Add some sources to this Bridge first." });
+
+  let context = "";
+  for (const [i, s] of sources.entries()) {
+    let content = s.text_content || "";
+    if (!content && s.summary) {
+      try { content = JSON.parse(s.summary).lead || ""; } catch { content = s.summary; }
+    }
+    context += `\n\n[Source ${i + 1}: ${s.title} (${s.type}${s.url ? `, ${s.url}` : ""})]\n${content.slice(0, 20_000)}`;
+  }
+
+  const notes = db.prepare("SELECT content FROM notes WHERE bridge_id = ?").all(bridgeId);
+  if (notes.length) context += `\n\n[User notes]\n${notes.map((n) => `- ${n.content}`).join("\n").slice(0, 4000)}`;
+
+  try {
+    const answer = await callGemini([
+      {
+        text: `You are Bridge, answering questions about the project "${bridge.title}" using ONLY the sources below. Cite sources inline like [Source 2] when you use them. If the sources don't contain the answer, say so plainly and suggest what source would help.\n${context.slice(0, 400_000)}\n\nQuestion: ${body.question.trim()}`,
+      },
+    ], { maxTokens: 1500 });
+    logActivity(bridgeId, "update", `Ask Bridge — ${body.question.trim().slice(0, 60)}`);
+    send(res, 200, { answer, sources: sources.map((s, i) => ({ ref: i + 1, id: s.id, title: s.title })) });
+  } catch (err) {
+    send(res, 502, { error: err instanceof Error ? err.message : "Ask Bridge failed" });
+  }
+});
+
+/* Map understanding — assembled from real sources (AI insights when present) */
 route("GET", /^\/api\/bridges\/([\w-]+)\/map$/, (req, res, [id]) => {
   const sources = db.prepare("SELECT id, title, type, summary FROM sources WHERE bridge_id = ?").all(id);
   const questions = db.prepare("SELECT * FROM questions WHERE bridge_id = ? AND status = 'Open'").all(id);
   const cards = [];
+  let hasMain = false;
+
   for (const s of sources) {
     if (!s.summary) continue;
-    try {
-      const parsed = JSON.parse(s.summary);
+    let parsed;
+    try { parsed = JSON.parse(s.summary); } catch { continue; }
+
+    if (Array.isArray(parsed.insights) && parsed.insights.length) {
+      for (const [i, insight] of parsed.insights.entries()) {
+        let type = insight.type;
+        if (type === "main") {
+          if (hasMain) type = "must-know"; // only one main card on the map
+          else hasMain = true;
+        }
+        cards.push({
+          id: `card-${s.id}-${i}`,
+          type,
+          title: insight.title,
+          body: insight.body,
+          sources: [s.id],
+          confidence: type === "question" ? "needs-info" : "confirmed",
+        });
+      }
+    } else {
       cards.push({
         id: `card-${s.id}`,
-        type: cards.length === 0 ? "main" : "must-know",
+        type: hasMain ? "must-know" : ((hasMain = true), "main"),
         title: parsed.keywords?.length ? `Key topics: ${parsed.keywords.slice(0, 3).join(", ")}` : s.title,
         body: parsed.lead,
         sources: [s.id],
         confidence: "inferred",
       });
-    } catch { /* legacy summary format */ }
+    }
   }
+
   for (const q of questions) {
     cards.push({ id: `q-${q.id}`, type: "question", title: q.title, body: q.linked || "Needs an answer.", sources: [], confidence: "needs-info" });
   }
-  send(res, 200, { cards });
+  send(res, 200, { cards: cards.slice(0, 24) });
+});
+
+/* Canvas positions — where items sit on the Workspace canvas */
+route("PUT", /^\/api\/bridges\/([\w-]+)\/positions$/, async (req, res, [bridgeId]) => {
+  const body = await readJson(req);
+  if (!body.itemId || typeof body.x !== "number" || typeof body.y !== "number") {
+    return send(res, 400, { error: "itemId, x, y are required" });
+  }
+  db.prepare(
+    "INSERT INTO canvas_positions (item_id, bridge_id, x, y) VALUES (?, ?, ?, ?) ON CONFLICT(item_id) DO UPDATE SET x = excluded.x, y = excluded.y"
+  ).run(body.itemId, bridgeId, body.x, body.y);
+  send(res, 200, { ok: true });
 });
 
 /* Notes */
@@ -445,6 +671,24 @@ route("PATCH", /^\/api\/questions\/([\w-]+)$/, async (req, res, [id]) => {
 
 /* ── Server ────────────────────────────────────────────────── */
 
+const STATIC_MIMES = {
+  ".html": "text/html; charset=utf-8", ".js": "text/javascript", ".css": "text/css",
+  ".svg": "image/svg+xml", ".png": "image/png", ".jpg": "image/jpeg", ".ico": "image/x-icon",
+  ".woff2": "font/woff2", ".json": "application/json", ".map": "application/json",
+};
+
+/** Serve the built UI from dist/ so the app can run on a single port (Mac app mode). */
+function serveStatic(req, res, pathname) {
+  if (!existsSync(DIST_DIR)) {
+    return send(res, 404, { error: "UI not built. Run `npm run build` first, or use `npm run dev` for development." });
+  }
+  let filePath = path.normalize(path.join(DIST_DIR, pathname === "/" ? "index.html" : pathname));
+  if (!filePath.startsWith(DIST_DIR)) return send(res, 403, { error: "Forbidden" });
+  if (!existsSync(filePath)) filePath = path.join(DIST_DIR, "index.html"); // SPA fallback
+  const ext = path.extname(filePath).toLowerCase();
+  send(res, 200, readFileSync(filePath), { "content-type": STATIC_MIMES[ext] || "application/octet-stream" });
+}
+
 const server = createServer(async (req, res) => {
   const url = new URL(req.url, `http://localhost:${PORT}`);
   try {
@@ -453,6 +697,7 @@ const server = createServer(async (req, res) => {
       const m = url.pathname.match(r.pattern);
       if (m) return await r.handler(req, res, m.slice(1), url);
     }
+    if (req.method === "GET" && !url.pathname.startsWith("/api/")) return serveStatic(req, res, url.pathname);
     send(res, 404, { error: `No route: ${req.method} ${url.pathname}` });
   } catch (err) {
     send(res, 500, { error: err instanceof Error ? err.message : "Server error" });
