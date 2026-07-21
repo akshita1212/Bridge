@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Sun, Moon, FileText, Video, Mic, Image, Link, ArrowRight, Play, Zap, Layers, GitBranch } from "lucide-react";
+import { Sun, Moon, FileText, Video, Image, ArrowRight, Play, Zap, Layers, GitBranch, Leaf, Sparkles } from "lucide-react";
 import type { Page, Theme } from "../App";
 
 interface Props {
@@ -22,6 +22,86 @@ const CARDS = [
   { id: "note", icon: FileText, label: "Key findings from research", color: "#DBE64C", dark: true, delay: 0.8 },
   { id: "image", icon: Image, label: "Flow Diagram — Final.png", color: "#74C365", delay: 1.1 },
 ];
+
+const SOLUTION_LEAF_STEPS = [
+  { side: "left", label: "First left leaf", solution: "Problem framing", y: 108, scale: 1, delay: 0 },
+  { side: "right", label: "First right leaf", solution: "User evidence", y: 84, scale: 1.05, delay: 0.14 },
+  { side: "left", label: "In-between left", solution: "Option A", y: 60, scale: 0.86, delay: 0.28 },
+  { side: "right", label: "In-between right", solution: "Option B", y: 38, scale: 0.88, delay: 0.42 },
+  { side: "left", label: "Final left leaf", solution: "Chosen path", y: 18, scale: 0.72, delay: 0.56 },
+] as const;
+
+type SolutionLeafStep = (typeof SOLUTION_LEAF_STEPS)[number];
+
+function SolutionLeaf({ step, index, isDark }: { step: SolutionLeafStep; index: number; isDark: boolean }) {
+  const isLeft = step.side === "left";
+
+  return (
+    <motion.div
+      className="absolute flex items-center gap-2"
+      style={{
+        bottom: step.y,
+        left: isLeft ? "50%" : undefined,
+        right: isLeft ? undefined : "50%",
+        transformOrigin: isLeft ? "right bottom" : "left bottom",
+      }}
+      initial={{ opacity: 0, scale: 0.55, rotate: isLeft ? -42 : 42, x: isLeft ? -8 : 8 }}
+      animate={{ opacity: 1, scale: step.scale, rotate: isLeft ? -18 : 18, x: 0 }}
+      transition={{ duration: 0.55, delay: 1.35 + step.delay, ease: [0.16, 1, 0.3, 1] }}
+    >
+      {isLeft && (
+        <span className="rounded-full px-2 py-1 border border-border" style={{ background: isDark ? "#12243A" : "#FFFFFF", fontSize: "0.62rem", fontWeight: 700, color: "var(--muted-foreground)", whiteSpace: "nowrap" }}>
+          {step.solution}
+        </span>
+      )}
+      <div
+        className="w-16 h-9 flex items-center justify-center border border-border"
+        style={{
+          borderRadius: isLeft ? "999px 999px 999px 8px" : "999px 999px 8px 999px",
+          background: index % 2 === 0 ? "#74C365" : "#DBE64C",
+          color: "#001F3F",
+          boxShadow: "0 10px 24px rgba(0, 31, 63, 0.10)",
+        }}
+        aria-label={step.label}
+      >
+        <Leaf size={17} style={{ transform: isLeft ? "rotate(-32deg)" : "scaleX(-1) rotate(-32deg)" }} />
+      </div>
+      {!isLeft && (
+        <span className="rounded-full px-2 py-1 border border-border" style={{ background: isDark ? "#12243A" : "#FFFFFF", fontSize: "0.62rem", fontWeight: 700, color: "var(--muted-foreground)", whiteSpace: "nowrap" }}>
+          {step.solution}
+        </span>
+      )}
+    </motion.div>
+  );
+}
+
+function SolutionGrowthPreview({ isDark }: { isDark: boolean }) {
+  return (
+    <div className="relative flex items-center justify-center min-h-[230px] w-full">
+      <motion.div
+        className="absolute bottom-8 w-1 rounded-full"
+        style={{ height: 150, background: "linear-gradient(180deg, #74C365 0%, #00804C 100%)" }}
+        initial={{ scaleY: 0, transformOrigin: "bottom" }}
+        animate={{ scaleY: 1 }}
+        transition={{ duration: 0.9, delay: 0.9, ease: [0.16, 1, 0.3, 1] }}
+      />
+      {SOLUTION_LEAF_STEPS.map((step, index) => (
+        <SolutionLeaf key={`${step.side}-${step.solution}`} step={step} index={index} isDark={isDark} />
+      ))}
+      <motion.div
+        className="absolute top-2 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2"
+        initial={{ opacity: 0, scale: 0.55, y: 12 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        transition={{ duration: 0.6, delay: 2.08, ease: [0.16, 1, 0.3, 1] }}
+      >
+        <div className="w-16 h-16 rounded-full flex items-center justify-center" style={{ background: "#DBE64C", color: "#001F3F", boxShadow: "0 14px 32px rgba(219, 230, 76, 0.28)" }}>
+          <Sparkles size={22} />
+        </div>
+        <span style={{ fontSize: "0.7rem", fontWeight: 800, color: "var(--status-positive)" }}>Solution blooms</span>
+      </motion.div>
+    </div>
+  );
+}
 
 const FEATURES = [
   {
@@ -184,34 +264,44 @@ export function Landing({ theme, onToggleTheme, onNavigate }: Props) {
             </div>
 
             {/* Canvas area */}
-            <div className="p-8 flex flex-wrap gap-4 items-start justify-center" style={{ minHeight: 240 }}>
-              {CARDS.map((card) => (
-                <AnimatePresence key={card.id}>
-                  {cardsVisible && (
-                    <motion.div
-                      initial={{ opacity: 0, scale: 0.8, y: 20 }}
-                      animate={{ opacity: 1, scale: 1, y: 0 }}
-                      transition={{ duration: 0.5, delay: card.delay, ease: [0.16, 1, 0.3, 1] }}
-                      className="flex flex-col gap-2 p-3 rounded-xl border border-border cursor-default"
-                      style={{
-                        background: isDark ? "#132235" : "#FFFFFF",
-                        width: 148,
-                        boxShadow: "0 2px 8px rgba(0,31,63,0.06)",
-                      }}
-                    >
-                      <div
-                        className="w-full h-16 rounded-lg flex items-center justify-center"
-                        style={{ background: card.color + (isDark ? "22" : "15") }}
+            <div className="grid md:grid-cols-[1.15fr_0.85fr] gap-4 p-8 items-center" style={{ minHeight: 240 }}>
+              <div className="flex flex-wrap gap-4 items-start justify-center">
+                {CARDS.map((card) => (
+                  <AnimatePresence key={card.id}>
+                    {cardsVisible && (
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.8, y: 20 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        transition={{ duration: 0.5, delay: card.delay, ease: [0.16, 1, 0.3, 1] }}
+                        className="flex flex-col gap-2 p-3 rounded-xl border border-border cursor-default"
+                        style={{
+                          background: isDark ? "#132235" : "#FFFFFF",
+                          width: 148,
+                          boxShadow: "0 2px 8px rgba(0,31,63,0.06)",
+                        }}
                       >
-                        <card.icon size={22} style={{ color: card.color }} />
-                      </div>
-                      <p style={{ fontSize: "0.7rem", fontWeight: 500, color: "var(--muted-foreground)", lineHeight: 1.3 }}>
-                        {card.label}
-                      </p>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              ))}
+                        <div
+                          className="w-full h-16 rounded-lg flex items-center justify-center"
+                          style={{ background: card.color + (isDark ? "22" : "15") }}
+                        >
+                          <card.icon size={22} style={{ color: card.color }} />
+                        </div>
+                        <p style={{ fontSize: "0.7rem", fontWeight: 500, color: "var(--muted-foreground)", lineHeight: 1.3 }}>
+                          {card.label}
+                        </p>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                ))}
+              </div>
+
+              <div className="rounded-2xl border border-border px-4 py-3" style={{ background: isDark ? "rgba(19,34,53,0.72)" : "rgba(255,255,255,0.74)" }}>
+                <div className="flex items-center justify-between mb-1">
+                  <p style={{ fontSize: "0.72rem", fontWeight: 800, color: "var(--foreground)" }}>Reusable solution growth</p>
+                  <span style={{ fontSize: "0.62rem", fontWeight: 700, color: "var(--muted-foreground)" }}>left → right template</span>
+                </div>
+                <SolutionGrowthPreview isDark={isDark} />
+              </div>
 
               {/* Understanding ready chip */}
               <AnimatePresence>
