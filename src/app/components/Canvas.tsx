@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import type { Page, Theme } from "../App";
 import { WorkspaceCanvas } from "./WorkspaceCanvas";
+import { AskAgentBar, AskAgentCorner, AskAgentPanel, type AgentKnowledge, type AgentOpenQuestion } from "./AskAgent";
 import { api, timeAgo, parseSummary, type BridgeState, type ApiSource, type MapCard } from "../lib/api";
 
 interface Props {
@@ -2763,111 +2764,6 @@ function MoreMenu({ mode, onClose, onSelect }: { mode: WorkspaceMode; onClose: (
 
 // ─── Main Canvas ─────────────────────────────────────────────────────────────
 
-// ─── Ask Bridge (live) ───────────────────────────────────────────────────────
-// Chat grounded in this bridge's real sources, answered by the local API.
-
-function AskBridgeModal({ bridgeId, onClose }: { bridgeId: string; onClose: () => void }) {
-  const [messages, setMessages] = useState<{ role: "user" | "bridge"; text: string }[]>([]);
-  const [input, setInput] = useState("");
-  const [busy, setBusy] = useState(false);
-  const scrollRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
-  }, [messages, busy]);
-
-  const send = async () => {
-    const q = input.trim();
-    if (!q || busy) return;
-    setInput("");
-    setMessages((m) => [...m, { role: "user", text: q }]);
-    setBusy(true);
-    try {
-      const res = await api.ask(bridgeId, q);
-      setMessages((m) => [...m, { role: "bridge", text: res.answer }]);
-    } catch (err) {
-      setMessages((m) => [...m, { role: "bridge", text: `⚠ ${err instanceof Error ? err.message : "Something went wrong."}` }]);
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  return (
-    <>
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-40" style={{ background: "rgba(0,0,0,0.2)", backdropFilter: "blur(2px)" }} onClick={onClose} />
-      <motion.div
-        initial={{ opacity: 0, y: 16, scale: 0.98 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        exit={{ opacity: 0, y: 12, scale: 0.98 }}
-        transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-        className="fixed bottom-24 right-6 z-50 w-[420px] rounded-2xl border border-border overflow-hidden flex flex-col"
-        style={{ background: "var(--card)", boxShadow: "var(--shadow-xl)", height: "min(65vh, 560px)" }}
-      >
-        <div className="flex items-center justify-between px-4 py-3 border-b border-border flex-shrink-0">
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ background: "var(--accent)" }}>
-              <MessageCircle size={12} style={{ color: "var(--accent-foreground)" }} />
-            </div>
-            <p style={{ fontWeight: 700, fontSize: "0.875rem" }}>Ask Bridge</p>
-            <span style={{ fontSize: "0.65rem", color: "var(--muted-foreground)" }}>grounded in this Bridge's sources</span>
-          </div>
-          <button onClick={onClose} className="hover:bg-secondary rounded-lg p-1 transition-colors" style={{ color: "var(--muted-foreground)" }}><X size={13} /></button>
-        </div>
-
-        <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-3">
-          {messages.length === 0 && (
-            <div className="flex flex-col items-center justify-center gap-2 h-full text-center px-6">
-              <p style={{ fontSize: "0.85rem", fontWeight: 700 }}>Ask anything about your sources</p>
-              <p style={{ fontSize: "0.75rem", color: "var(--muted-foreground)", lineHeight: 1.55 }}>
-                "What are the main themes across my chapters?" · "Where do source 1 and 2 disagree?" · "Draft an outline from these notes."
-              </p>
-            </div>
-          )}
-          {messages.map((m, i) => (
-            <div key={i} className={m.role === "user" ? "self-end" : "self-start"} style={{ maxWidth: "88%" }}>
-              <div
-                className="px-3.5 py-2.5 rounded-2xl"
-                style={m.role === "user"
-                  ? { background: "var(--btn-brand-bg)", color: "var(--btn-brand-fg)", fontSize: "0.84rem", lineHeight: 1.5, borderBottomRightRadius: 6 }
-                  : { background: "var(--secondary)", color: "var(--foreground)", fontSize: "0.84rem", lineHeight: 1.6, whiteSpace: "pre-wrap", borderBottomLeftRadius: 6 }}
-              >
-                {m.text}
-              </div>
-            </div>
-          ))}
-          {busy && (
-            <div className="self-start flex items-center gap-2 px-3.5 py-2.5 rounded-2xl" style={{ background: "var(--secondary)" }}>
-              {[0, 1, 2].map((i) => (
-                <span key={i} className="w-1.5 h-1.5 rounded-full animate-bounce inline-block" style={{ background: "var(--muted-foreground)", animationDelay: `${i * 0.15}s` }} />
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div className="px-3 py-3 border-t border-border flex gap-2 flex-shrink-0">
-          <input
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && send()}
-            placeholder="Ask about your sources…"
-            autoFocus
-            className="flex-1 px-3.5 py-2 rounded-xl border border-border outline-none"
-            style={{ fontSize: "0.875rem", background: "var(--input-background)" }}
-          />
-          <button
-            onClick={send}
-            disabled={busy || !input.trim()}
-            className="px-4 py-2 rounded-xl transition-all hover:opacity-90 disabled:opacity-40"
-            style={{ background: "var(--btn-brand-bg)", color: "var(--btn-brand-fg)", fontSize: "0.85rem", fontWeight: 700 }}
-          >
-            Ask
-          </button>
-        </div>
-      </motion.div>
-    </>
-  );
-}
-
 // ─── Live Source Viewer ──────────────────────────────────────────────────────
 // Opens a persisted source from the local API: PDFs and images render inline,
 // audio/video get players, text shows extracted content, links open out.
@@ -3005,9 +2901,7 @@ export function Canvas({ theme, onToggleTheme, onNavigate, canvasId }: Props) {
   const [live, setLive] = useState<BridgeState | null>(null);
   const [liveCards, setLiveCards] = useState<MapCard[] | null>(null);
   const [liveSourceView, setLiveSourceView] = useState<ApiSource | null>(null);
-  const [askOpen, setAskOpen] = useState(false);
-  const [aiModel, setAiModel] = useState<string | null>(null);
-  useEffect(() => { api.aiStatus().then((st) => setAiModel(st.configured ? st.model : null)).catch(() => setAiModel(null)); }, []);
+  const [ask, setAsk] = useState<{ tab: "ask" | "questions"; question?: string } | null>(null);
 
   const refreshLive = async () => {
     try {
@@ -3026,6 +2920,19 @@ export function Canvas({ theme, onToggleTheme, onNavigate, canvasId }: Props) {
 
   const isDark = theme === "dark";
   const title = live?.bridge.title || CANVAS_TITLES[canvasId] || "Untitled Bridge";
+
+  // Everything the agent can answer from: Map cards plus every source.
+  const agentCards: InsightCard[] = isLive ? ((liveCards ?? []) as InsightCard[]) : MAP_CARDS;
+  const sourceTitle = (id: string) => (isLive ? live.sources.find((x) => x.id === id)?.title : getSourceById(id)?.title) || id;
+  const agentKnowledge: AgentKnowledge[] = [
+    ...agentCards.map((c) => ({ id: c.id, kind: c.type, title: c.title, body: c.body, confidence: c.confidence, sources: c.sources.map((id) => ({ id, title: sourceTitle(id) })) })),
+    ...(isLive
+      ? live.sources.map((x) => ({ id: x.id, kind: "source", title: x.title, body: x.summary || x.text_content?.slice(0, 280) || "", sources: [{ id: x.id, title: x.title }] }))
+      : SOURCES.map((x) => ({ id: x.id, kind: "source", title: x.title, body: x.meta, sources: [{ id: x.id, title: x.title }] }))),
+  ];
+  const agentOpenQuestions: AgentOpenQuestion[] = isLive
+    ? live.questions.filter((q) => q.status === "Open").map((q) => ({ id: q.id, title: q.title, detail: q.linked ? `Linked to ${q.linked}` : "No source answers this yet." }))
+    : agentCards.filter((c) => c.type === "question").map((c) => ({ id: c.id, title: c.title, detail: c.body }));
 
   const addToast = (msg: string) => {
     const id = ++toastCounter.current;
@@ -3504,6 +3411,7 @@ export function Canvas({ theme, onToggleTheme, onNavigate, canvasId }: Props) {
               }}
               onAction={handleInputAction}
             />
+            {!isEmpty && <AskAgentBar onAsk={(q) => setAsk({ tab: "ask", question: q || undefined })} />}
           </div>
         </div>
 
@@ -3525,22 +3433,23 @@ export function Canvas({ theme, onToggleTheme, onNavigate, canvasId }: Props) {
         </AnimatePresence>
       </div>
 
-      {/* Ask Bridge — floating entry point for live bridges */}
-      {isLive && !isEmpty && !askOpen && (
-        <motion.button
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          onClick={() => setAskOpen(true)}
-          className="fixed bottom-24 right-6 z-30 flex items-center gap-2 px-4 py-2.5 rounded-full transition-all hover:scale-105"
-          style={{ background: "var(--btn-brand-bg)", color: "var(--btn-brand-fg)", fontSize: "0.85rem", fontWeight: 800, boxShadow: "var(--shadow-lg)" }}
-        >
-          <MessageCircle size={14} />
-          Ask Bridge
-          {!aiModel && <span title="Add GEMINI_API_KEY to .env for real answers" className="w-1.5 h-1.5 rounded-full" style={{ background: "var(--status-danger)" }} />}
-        </motion.button>
-      )}
+      {/* Ask Bridge agent — corner questions button + side panel */}
+      {!isEmpty && !ask && <AskAgentCorner openCount={agentOpenQuestions.length} onClick={() => setAsk({ tab: "questions" })} />}
       <AnimatePresence>
-        {askOpen && isLive && <AskBridgeModal bridgeId={canvasId} onClose={() => setAskOpen(false)} />}
+        {ask && (
+          <AskAgentPanel
+            key={ask.question ?? ask.tab}
+            bridgeId={canvasId}
+            isLive={isLive}
+            knowledge={agentKnowledge}
+            openQuestions={agentOpenQuestions}
+            initialTab={ask.tab}
+            initialQuestion={ask.question}
+            onClose={() => setAsk(null)}
+            onOpenSource={(id) => { setAsk(null); handleContentSourceOpen(id); }}
+            onAction={(label) => { addToast(label); setProcessingMsg("Map updated"); setTimeout(() => setProcessingMsg(null), 2200); }}
+          />
+        )}
       </AnimatePresence>
 
       <AnimatePresence>
