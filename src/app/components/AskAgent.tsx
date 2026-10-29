@@ -112,7 +112,7 @@ function answerFromContent(q: string, knowledge: AgentKnowledge[]): Message {
 
 // ─── Bottom bar input ────────────────────────────────────────────────────────
 
-export function AskAgentBar({ onAsk }: { onAsk: (q: string) => void }) {
+export function AskAgentBar({ onAsk, active }: { onAsk: (q: string) => void; active?: boolean }) {
   const [value, setValue] = useState("");
   const submit = () => {
     const q = value.trim();
@@ -123,14 +123,16 @@ export function AskAgentBar({ onAsk }: { onAsk: (q: string) => void }) {
   return (
     <div
       className="flex items-center gap-2 pl-3.5 pr-1.5 py-1.5 rounded-2xl border border-border"
-      style={{ background: "var(--card)", boxShadow: "0 4px 24px rgba(0,31,63,0.10), 0 1px 4px rgba(0,31,63,0.06)", width: 340 }}
+      style={{ background: "var(--card)", boxShadow: active ? "0 0 0 3px var(--accent), var(--shadow-lg)" : "0 4px 24px rgba(0,31,63,0.10), 0 1px 4px rgba(0,31,63,0.06)", borderColor: active ? "transparent" : undefined, width: 320, flexShrink: 0 }}
     >
       <Sparkles size={14} style={{ color: "var(--accent-strong)", flexShrink: 0 }} />
       <input
         value={value}
         onChange={(e) => setValue(e.target.value)}
         onKeyDown={(e) => e.key === "Enter" && submit()}
-        placeholder="Ask Bridge about everything here…"
+        placeholder={active ? "Ask a follow-up…" : "Ask Bridge about everything here…"}
+        autoFocus={active}
+        key={active ? "active" : "idle"}
         className="flex-1 min-w-0 bg-transparent outline-none"
         style={{ fontSize: "0.84rem" }}
       />
@@ -179,7 +181,7 @@ export function AskAgentPanel({
   knowledge,
   openQuestions,
   initialTab,
-  initialQuestion,
+  question,
   onClose,
   onOpenSource,
   onAction,
@@ -189,28 +191,26 @@ export function AskAgentPanel({
   knowledge: AgentKnowledge[];
   openQuestions: AgentOpenQuestion[];
   initialTab: "ask" | "questions";
-  initialQuestion?: string;
+  question?: { n: number; text: string };
   onClose: () => void;
   onOpenSource: (id: string) => void;
   onAction: (label: string) => void;
 }) {
   const [tab, setTab] = useState(initialTab);
   const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const asked = useRef<string | undefined>(undefined);
+  const asked = useRef<number | undefined>(undefined);
   const sourceCount = new Set(knowledge.flatMap((k) => k.sources.map((s) => s.id))).size;
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages, busy]);
 
-  const send = async (text?: string) => {
-    const q = (text ?? input).trim();
+  const send = async (text: string) => {
+    const q = text.trim();
     if (!q || busy) return;
     setTab("ask");
-    setInput("");
     setMessages((m) => [...m, { role: "user", text: q }]);
     setBusy(true);
     try {
@@ -229,12 +229,12 @@ export function AskAgentPanel({
   };
 
   useEffect(() => {
-    if (initialQuestion && asked.current !== initialQuestion) {
-      asked.current = initialQuestion;
-      send(initialQuestion);
+    if (question && asked.current !== question.n) {
+      asked.current = question.n;
+      send(question.text);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialQuestion]);
+  }, [question?.n]);
 
   return (
     <motion.aside
@@ -366,26 +366,10 @@ export function AskAgentPanel({
         )}
       </div>
 
-      {/* Input */}
-      <div className="px-3 py-3 border-t border-border flex gap-2 flex-shrink-0">
-        <input
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && send()}
-          placeholder="Ask about any source, note or card…"
-          autoFocus
-          className="flex-1 px-3.5 py-2 rounded-xl border border-border outline-none"
-          style={{ fontSize: "0.85rem", background: "var(--input-background)" }}
-        />
-        <button
-          onClick={() => send()}
-          disabled={busy || !input.trim()}
-          aria-label="Send"
-          className="w-10 rounded-xl flex items-center justify-center transition-all hover:opacity-90 disabled:opacity-40"
-          style={{ background: "var(--btn-brand-bg)", color: "var(--btn-brand-fg)" }}
-        >
-          <ArrowUp size={15} />
-        </button>
+      {/* Typing happens in the bottom bar's Ask field, so the panel has no input of its own */}
+      <div className="px-4 py-2.5 border-t border-border flex items-center gap-1.5 flex-shrink-0" style={{ fontSize: "0.7rem", color: "var(--muted-foreground)" }}>
+        <CornerDownRight size={11} style={{ transform: "rotate(90deg)" }} />
+        Type your question in the Ask bar below
       </div>
     </motion.aside>
   );

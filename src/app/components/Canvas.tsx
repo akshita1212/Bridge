@@ -2482,7 +2482,7 @@ function BottomCommandBar({
         <button
           key={action.id}
           onClick={() => onAction(action.id)}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-xl hover:bg-secondary transition-colors group"
+          className="flex items-center gap-1.5 px-3 py-2 rounded-xl hover:bg-secondary transition-colors group whitespace-nowrap"
           style={{ fontSize: "0.8rem", fontWeight: 500, color: "var(--muted-foreground)" }}
         >
           <action.icon size={14} className="group-hover:text-foreground transition-colors" />
@@ -2901,7 +2901,12 @@ export function Canvas({ theme, onToggleTheme, onNavigate, canvasId }: Props) {
   const [live, setLive] = useState<BridgeState | null>(null);
   const [liveCards, setLiveCards] = useState<MapCard[] | null>(null);
   const [liveSourceView, setLiveSourceView] = useState<ApiSource | null>(null);
-  const [ask, setAsk] = useState<{ tab: "ask" | "questions"; question?: string } | null>(null);
+  const [ask, setAsk] = useState<{ tab: "ask" | "questions" } | null>(null);
+  const [askQuestion, setAskQuestion] = useState<{ n: number; text: string } | undefined>(undefined);
+  const askBridge = (q: string) => {
+    setAsk((a) => a ?? { tab: "ask" });
+    if (q) setAskQuestion({ n: Date.now(), text: q });
+  };
 
   const refreshLive = async () => {
     try {
@@ -3411,7 +3416,7 @@ export function Canvas({ theme, onToggleTheme, onNavigate, canvasId }: Props) {
               }}
               onAction={handleInputAction}
             />
-            {!isEmpty && <AskAgentBar onAsk={(q) => setAsk({ tab: "ask", question: q || undefined })} />}
+            {!isEmpty && <AskAgentBar active={!!ask} onAsk={askBridge} />}
           </div>
         </div>
 
@@ -3438,14 +3443,13 @@ export function Canvas({ theme, onToggleTheme, onNavigate, canvasId }: Props) {
       <AnimatePresence>
         {ask && (
           <AskAgentPanel
-            key={ask.question ?? ask.tab}
             bridgeId={canvasId}
             isLive={isLive}
             knowledge={agentKnowledge}
             openQuestions={agentOpenQuestions}
             initialTab={ask.tab}
-            initialQuestion={ask.question}
-            onClose={() => setAsk(null)}
+            question={askQuestion}
+            onClose={() => { setAsk(null); setAskQuestion(undefined); }}
             onOpenSource={(id) => { setAsk(null); handleContentSourceOpen(id); }}
             onAction={(label) => { addToast(label); setProcessingMsg("Map updated"); setTimeout(() => setProcessingMsg(null), 2200); }}
           />
