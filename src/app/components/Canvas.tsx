@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import type { Page, Theme } from "../App";
 import { WorkspaceCanvas } from "./WorkspaceCanvas";
-import { AskAgentBar, AskAgentCorner, AskAgentPanel, type AgentKnowledge, type AgentOpenQuestion } from "./AskAgent";
+import { AskAgentButton, AskAgentPanel, type AgentKnowledge } from "./AskAgent";
 import { api, timeAgo, parseSummary, type BridgeState, type ApiSource, type MapCard } from "../lib/api";
 
 interface Props {
@@ -2901,12 +2901,8 @@ export function Canvas({ theme, onToggleTheme, onNavigate, canvasId }: Props) {
   const [live, setLive] = useState<BridgeState | null>(null);
   const [liveCards, setLiveCards] = useState<MapCard[] | null>(null);
   const [liveSourceView, setLiveSourceView] = useState<ApiSource | null>(null);
-  const [ask, setAsk] = useState<{ tab: "ask" | "questions" } | null>(null);
-  const [askQuestion, setAskQuestion] = useState<{ n: number; text: string } | undefined>(undefined);
-  const askBridge = (q: string) => {
-    setAsk((a) => a ?? { tab: "ask" });
-    if (q) setAskQuestion({ n: Date.now(), text: q });
-  };
+  const [askOpen, setAskOpen] = useState(false);
+
 
   const refreshLive = async () => {
     try {
@@ -2928,17 +2924,14 @@ export function Canvas({ theme, onToggleTheme, onNavigate, canvasId }: Props) {
 
   // Everything the agent can answer from: Map cards plus every source.
   const agentCards: InsightCard[] = isLive ? ((liveCards ?? []) as InsightCard[]) : MAP_CARDS;
+  const sourceType = (id: string) => (isLive ? live.sources.find((x) => x.id === id)?.type : getSourceById(id)?.type);
   const sourceTitle = (id: string) => (isLive ? live.sources.find((x) => x.id === id)?.title : getSourceById(id)?.title) || id;
   const agentKnowledge: AgentKnowledge[] = [
-    ...agentCards.map((c) => ({ id: c.id, kind: c.type, title: c.title, body: c.body, confidence: c.confidence, sources: c.sources.map((id) => ({ id, title: sourceTitle(id) })) })),
+    ...agentCards.map((c) => ({ id: c.id, kind: c.type, title: c.title, body: c.body, confidence: c.confidence, sources: c.sources.map((id) => ({ id, title: sourceTitle(id), type: sourceType(id) })) })),
     ...(isLive
-      ? live.sources.map((x) => ({ id: x.id, kind: "source", title: x.title, body: x.summary || x.text_content?.slice(0, 280) || "", sources: [{ id: x.id, title: x.title }] }))
-      : SOURCES.map((x) => ({ id: x.id, kind: "source", title: x.title, body: x.meta, sources: [{ id: x.id, title: x.title }] }))),
+      ? live.sources.map((x) => ({ id: x.id, kind: "source", title: x.title, body: x.summary || x.text_content?.slice(0, 280) || "", sources: [{ id: x.id, title: x.title, type: x.type }] }))
+      : SOURCES.map((x) => ({ id: x.id, kind: "source", title: x.title, body: x.meta, sources: [{ id: x.id, title: x.title, type: x.type }] }))),
   ];
-  const agentOpenQuestions: AgentOpenQuestion[] = isLive
-    ? live.questions.filter((q) => q.status === "Open").map((q) => ({ id: q.id, title: q.title, detail: q.linked ? `Linked to ${q.linked}` : "No source answers this yet." }))
-    : agentCards.filter((c) => c.type === "question").map((c) => ({ id: c.id, title: c.title, detail: c.body }));
-
   const addToast = (msg: string) => {
     const id = ++toastCounter.current;
     setToasts((t) => [...t, { id, msg }]);
@@ -3416,7 +3409,6 @@ export function Canvas({ theme, onToggleTheme, onNavigate, canvasId }: Props) {
               }}
               onAction={handleInputAction}
             />
-            {!isEmpty && <AskAgentBar active={!!ask} onAsk={askBridge} />}
           </div>
         </div>
 
@@ -3438,20 +3430,17 @@ export function Canvas({ theme, onToggleTheme, onNavigate, canvasId }: Props) {
         </AnimatePresence>
       </div>
 
-      {/* Ask Bridge agent — corner questions button + side panel */}
-      {!isEmpty && !ask && <AskAgentCorner openCount={agentOpenQuestions.length} onClick={() => setAsk({ tab: "questions" })} />}
+      {/* Ask the agent — corner button opens a small chat */}
       <AnimatePresence>
-        {ask && (
+        {!isEmpty && !askOpen && <AskAgentButton key="ask-button" onClick={() => setAskOpen(true)} />}
+        {askOpen && (
           <AskAgentPanel
+            key="ask-panel"
             bridgeId={canvasId}
             isLive={isLive}
             knowledge={agentKnowledge}
-            openQuestions={agentOpenQuestions}
-            initialTab={ask.tab}
-            question={askQuestion}
-            onClose={() => { setAsk(null); setAskQuestion(undefined); }}
-            onOpenSource={(id) => { setAsk(null); handleContentSourceOpen(id); }}
-            onAction={(label) => { addToast(label); setProcessingMsg("Map updated"); setTimeout(() => setProcessingMsg(null), 2200); }}
+            onClose={() => setAskOpen(false)}
+            onOpenSource={(id) => { setAskOpen(false); handleContentSourceOpen(id); }}
           />
         )}
       </AnimatePresence>
