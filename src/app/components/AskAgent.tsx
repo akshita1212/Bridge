@@ -68,11 +68,7 @@ function answerFromContent(q: string, knowledge: AgentKnowledge[]): Message {
   const byKind = (...k: string[]) => knowledge.filter((i) => k.includes(i.kind));
   const reply = (headline: string, body: string, picks: AgentKnowledge[], followUps: string[]): Message => ({ role: "agent", headline, body, sources: uniqSources(picks), followUps });
 
-  if (/summar|overview|whole|everything|tl;?dr/.test(ql)) {
-    const main = byKind("main")[0];
-    const picks = [...byKind("main"), ...byKind("must-know")];
-    return reply(`${main?.title ?? "Here's the short version"}.`, `${main?.body ?? ""} Also: ${byKind("must-know").map((p) => p.title.toLowerCase()).join("; ")}.`, picks, ["What's still unanswered?", "Make a 2-minute audio summary"]);
-  }
+  // Output requests first: "an audio summary" is a request for audio, not for a summary.
   if (/audio|podcast|listen|video|explainer|watch/.test(ql)) {
     const video = /video|watch/.test(ql);
     const picks = [...byKind("main"), ...byKind("must-know"), ...byKind("decision")];
@@ -80,6 +76,11 @@ function answerFromContent(q: string, knowledge: AgentKnowledge[]): Message {
       ...reply(video ? "Here's a short video explainer." : "Here's a 2-minute audio summary.", `It walks through ${picks.length} findings from ${uniqSources(picks).length} sources, in plain words.`, picks, video ? ["Make an audio version"] : ["Make it a video instead"]),
       output: video ? { kind: "video", title: "Product Handoff, explained", length: "1:48" } : { kind: "audio", title: "Product Handoff in 2 minutes", length: "2:04" },
     } as Message;
+  }
+  if (/summar|overview|whole|everything|tl;?dr/.test(ql)) {
+    const main = byKind("main")[0];
+    const picks = [...byKind("main"), ...byKind("must-know")];
+    return reply(`${main?.title ?? "Here's the short version"}.`, `${main?.body ?? ""} Also: ${byKind("must-know").map((p) => p.title.toLowerCase()).join("; ")}.`, picks, ["What's still unanswered?", "Make a 2-minute audio summary"]);
   }
   if (/chang|latest|brief|update/.test(ql)) {
     const picks = byKind("must-know").slice(0, 1);
