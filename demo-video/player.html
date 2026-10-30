@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bridge Demo Player</title>
+<link rel="stylesheet" href="snap/assets/fonts/local.css">
+<style>
+/* Live player for the film: it drives film/index.html's seek(t), so any edit to film/film.js shows here on reload.
+   Serve this folder over http (see README): browsers block the frozen screens' iframes on file://. */
+:root { --paper: #F6F7ED; --sunk: #ECEEE1; --card: #FFFFFF; --ink: #001F3F; --soft: #4C5A55; --line: rgba(0,31,63,.12); --lime: #DBE64C; --on-lime: #232900;
+  --font: "Plus Jakarta Sans", system-ui, sans-serif; --mono: "DM Mono", ui-monospace, monospace; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --paper: #141712; --sunk: #1C201A; --card: #232820; --ink: #ECEFE2; --soft: #A6B09D; --line: rgba(236,239,226,.12); color-scheme: dark; } }
+:root[data-theme="dark"] { --paper: #141712; --sunk: #1C201A; --card: #232820; --ink: #ECEFE2; --soft: #A6B09D; --line: rgba(236,239,226,.12); color-scheme: dark; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--paper); color: var(--ink); font: 15px/1.5 var(--font); }
+.wrap { max-width: 1280px; margin: 0 auto; padding: 20px 16px 40px; }
+header { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+header a { color: var(--soft); font-size: 14px; }
+h1 { font-size: 20px; margin: 0; }
+.stage { position: relative; width: 100%; aspect-ratio: 16 / 9; background: #F6F7ED; border-radius: 14px; overflow: hidden; border: 1px solid var(--line); }
+.stage iframe { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; border: 0; transform-origin: 0 0; }
+.controls { display: flex; align-items: center; gap: 12px; margin-top: 12px; }
+button { font: 600 14px var(--font); border: 1px solid var(--line); background: var(--card); color: var(--ink); border-radius: 10px; padding: 8px 14px; cursor: pointer; }
+button.play { background: var(--lime); color: var(--on-lime); border-color: transparent; min-width: 84px; }
+input[type=range] { flex: 1; min-width: 0; accent-color: #00804C; }
+.time { font: 500 13px var(--mono); color: var(--soft); white-space: nowrap; }
+.chapters { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
+.chapters button { font-size: 13px; padding: 6px 10px; }
+.chapters button.on { background: var(--ink); color: var(--paper); }
+.note { margin-top: 14px; color: var(--soft); font-size: 13px; }
+.err { padding: 16px; border-radius: 12px; background: #FBE7E4; color: #7A1E12; display: none; margin-top: 12px; }
+:focus-visible { outline: 3px solid var(--lime); outline-offset: 2px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header><h1>Bridge product demo · live player</h1><a href="index.html">← Back to the overview</a></header>
+  <div class="stage" id="stage"><iframe id="film" src="film/index.html" title="Bridge product demo film"></iframe></div>
+  <div class="controls">
+    <button class="play" id="play">Play</button>
+    <input type="range" id="scrub" min="0" max="112" step="0.01" value="0" aria-label="Time">
+    <span class="time" id="time">0.0 s / 112 s</span>
+    <label class="time"><input type="checkbox" id="sound" checked> sound</label>
+  </div>
+  <div class="chapters" id="chapters"></div>
+  <p class="note">This plays the film live from <code>film/film.js</code> and the frozen screens in <code>snap/</code>, so an edit shows here after a reload. Sound is the final mix (<code>audio/preview.m4a</code>); after retiming, re-mix it (see README). Add <code>#t=60</code> to the address to open at a time.</p>
+  <div class="err" id="err">The film could not start. Serve this folder over http (for example <code>npx serve .</code> or <code>python3 -m http.server</code>) and open it from there.</div>
+</div>
+<audio id="audio" src="audio/preview.m4a" preload="auto"></audio>
+<script>
+const frame = document.getElementById("film"), stage = document.getElementById("stage"), scrub = document.getElementById("scrub");
+const timeEl = document.getElementById("time"), playBtn = document.getElementById("play"), audio = document.getElementById("audio"), sound = document.getElementById("sound");
+let W = null, t = 0, playing = false, last = 0;
+const fit = () => { frame.style.transform = `scale(${stage.clientWidth / 1920})`; };
+addEventListener("resize", fit); fit();
+function show(v) {
+  t = Math.max(0, Math.min(v, W ? W.DURATION : 112)); scrub.value = t;
+  timeEl.textContent = `${t.toFixed(1)} s / ${W ? W.DURATION : 112} s`;
+  if (W) W.seek(t);
+  document.querySelectorAll("#chapters button").forEach(b => b.classList.toggle("on", t >= +b.dataset.t && t < +b.dataset.end));
+}
+function loop(now) { if (!playing) return; t += (now - last) / 1000; last = now; if (W && t >= W.DURATION) { pause(); show(W.DURATION); return; } show(t); requestAnimationFrame(loop); }
+function play() { if (!W) return; if (t >= W.DURATION - .05) t = 0; playing = true; playBtn.textContent = "Pause"; last = performance.now();
+  if (sound.checked) { audio.currentTime = t; audio.play().catch(() => {}); } requestAnimationFrame(loop); }
+function pause() { playing = false; playBtn.textContent = "Play"; audio.pause(); }
+playBtn.onclick = () => playing ? pause() : play();
+scrub.oninput = () => { show(+scrub.value); if (playing) { audio.currentTime = t; last = performance.now(); } };
+sound.onchange = () => { if (!sound.checked) audio.pause(); else if (playing) { audio.currentTime = t; audio.play().catch(() => {}); } };
+frame.addEventListener("load", () => {
+  try { W = frame.contentWindow; } catch { W = null; }
+  const wait = setInterval(() => {
+    if (W && W.INIT_ERROR) { clearInterval(wait); document.getElementById("err").style.display = "block"; return; }
+    if (!W || !W.READY) return;
+    clearInterval(wait); scrub.max = W.DURATION;
+    const box = document.getElementById("chapters");
+    const items = [{ t: 0, end: W.TL.homeIn, num: "00", title: "Title" }, ...W.CHAPTERS, { t: W.TL.end, end: W.DURATION + 1, num: "10", title: "Thank you" }];
+    for (const c of items) { const b = document.createElement("button"); b.dataset.t = c.t; b.dataset.end = c.end; b.textContent = `${c.num} · ${c.title.replace(/\.$/, "")}`; b.onclick = () => { show(+c.t); if (playing) { audio.currentTime = t; last = performance.now(); } }; box.appendChild(b); }
+    const m = location.hash.match(/t=([\d.]+)/); show(m ? +m[1] : 0);
+  }, 100);
+  setTimeout(() => { if (!W || !W.READY) document.getElementById("err").style.display = "block"; }, 20000);
+});
+</script>
+</body>
+</html>

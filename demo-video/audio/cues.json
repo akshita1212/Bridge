@@ -1,0 +1,506 @@
+{
+ "duration": 112,
+ "tl": null,
+ "cues": [
+  {
+   "t": 0.15,
+   "kind": "logo",
+   "gain": 1
+  },
+  {
+   "t": 4.3,
+   "kind": "slide",
+   "gain": 0.8
+  },
+  {
+   "t": 8.8,
+   "kind": "slide",
+   "gain": 0.8
+  },
+  {
+   "t": 10.6,
+   "kind": "key",
+   "gain": 0.45
+  },
+  {
+   "t": 10.72,
+   "kind": "key",
+   "gain": 0.45
+  },
+  {
+   "t": 10.84,
+   "kind": "key",
+   "gain": 0.45
+  },
+  {
+   "t": 10.96,
+   "kind": "key",
+   "gain": 0.45
+  },
+  {
+   "t": 11.08,
+   "kind": "key",
+   "gain": 0.45
+  },
+  {
+   "t": 11.2,
+   "kind": "key",
+   "gain": 0.45
+  },
+  {
+   "t": 11.32,
+   "kind": "key",
+   "gain": 0.45
+  },
+  {
+   "t": 11.44,
+   "kind": "key",
+   "gain": 0.45
+  },
+  {
+   "t": 11.9,
+   "kind": "key",
+   "gain": 0.45
+  },
+  {
+   "t": 11.97,
+   "kind": "key",
+   "gain": 0.45
+  },
+  {
+   "t": 12.04,
+   "kind": "key",
+   "gain": 0.45
+  },
+  {
+   "t": 12.11,
+   "kind": "key",
+   "gain": 0.45
+  },
+  {
+   "t": 12.18,
+   "kind": "key",
+   "gain": 0.45
+  },
+  {
+   "t": 12.25,
+   "kind": "key",
+   "gain": 0.45
+  },
+  {
+   "t": 12.32,
+   "kind": "key",
+   "gain": 0.45
+  },
+  {
+   "t": 12.39,
+   "kind": "key",
+   "gain": 0.45
+  },
+  {
+   "t": 12.46,
+   "kind": "key",
+   "gain": 0.45
+  },
+  {
+   "t": 12.53,
+   "kind": "key",
+   "gain": 0.45
+  },
+  {
+   "t": 12.6,
+   "kind": "key",
+   "gain": 0.45
+  },
+  {
+   "t": 12.67,
+   "kind": "key",
+   "gain": 0.45
+  },
+  {
+   "t": 12.74,
+   "kind": "key",
+   "gain": 0.45
+  },
+  {
+   "t": 12.81,
+   "kind": "key",
+   "gain": 0.45
+  },
+  {
+   "t": 12.88,
+   "kind": "key",
+   "gain": 0.45
+  },
+  {
+   "t": 12.95,
+   "kind": "key",
+   "gain": 0.45
+  },
+  {
+   "t": 13.02,
+   "kind": "key",
+   "gain": 0.45
+  },
+  {
+   "t": 13.09,
+   "kind": "key",
+   "gain": 0.45
+  },
+  {
+   "t": 13.16,
+   "kind": "key",
+   "gain": 0.45
+  },
+  {
+   "t": 13.23,
+   "kind": "key",
+   "gain": 0.45
+  },
+  {
+   "t": 13.3,
+   "kind": "key",
+   "gain": 0.45
+  },
+  {
+   "t": 13.37,
+   "kind": "key",
+   "gain": 0.45
+  },
+  {
+   "t": 13.44,
+   "kind": "key",
+   "gain": 0.45
+  },
+  {
+   "t": 13.51,
+   "kind": "key",
+   "gain": 0.45
+  },
+  {
+   "t": 14.4,
+   "kind": "place",
+   "gain": 0.5
+  },
+  {
+   "t": 15.6,
+   "kind": "place",
+   "gain": 0.5
+  },
+  {
+   "t": 16.8,
+   "kind": "place",
+   "gain": 0.5
+  },
+  {
+   "t": 21.2,
+   "kind": "click",
+   "gain": 1
+  },
+  {
+   "t": 22.3,
+   "kind": "slide",
+   "gain": 0.8
+  },
+  {
+   "t": 24.2,
+   "kind": "place",
+   "gain": 0.5
+  },
+  {
+   "t": 25.35,
+   "kind": "place",
+   "gain": 0.5
+  },
+  {
+   "t": 26.5,
+   "kind": "place",
+   "gain": 0.5
+  },
+  {
+   "t": 27.65,
+   "kind": "place",
+   "gain": 0.5
+  },
+  {
+   "t": 28.8,
+   "kind": "place",
+   "gain": 0.5
+  },
+  {
+   "t": 29.95,
+   "kind": "place",
+   "gain": 0.5
+  },
+  {
+   "t": 60.4,
+   "kind": "click",
+   "gain": 1
+  },
+  {
+   "t": 63,
+   "kind": "soft",
+   "gain": 0.4
+  },
+  {
+   "t": 67.3,
+   "kind": "click",
+   "gain": 1
+  },
+  {
+   "t": 71,
+   "kind": "toggle",
+   "gain": 0.5
+  },
+  {
+   "t": 72.3,
+   "kind": "toggle",
+   "gain": 0.5
+  },
+  {
+   "t": 73.6,
+   "kind": "toggle",
+   "gain": 0.5
+  },
+  {
+   "t": 83.1,
+   "kind": "click",
+   "gain": 1
+  },
+  {
+   "t": 84.3,
+   "kind": "key",
+   "gain": 0.45
+  },
+  {
+   "t": 84.42,
+   "kind": "key",
+   "gain": 0.45
+  },
+  {
+   "t": 84.54,
+   "kind": "key",
+   "gain": 0.45
+  },
+  {
+   "t": 84.66,
+   "kind": "key",
+   "gain": 0.45
+  },
+  {
+   "t": 84.78,
+   "kind": "key",
+   "gain": 0.45
+  },
+  {
+   "t": 84.9,
+   "kind": "key",
+   "gain": 0.45
+  },
+  {
+   "t": 85.02,
+   "kind": "key",
+   "gain": 0.45
+  },
+  {
+   "t": 85.14,
+   "kind": "key",
+   "gain": 0.45
+  },
+  {
+   "t": 85.26,
+   "kind": "key",
+   "gain": 0.45
+  },
+  {
+   "t": 85.38,
+   "kind": "key",
+   "gain": 0.45
+  },
+  {
+   "t": 85.9,
+   "kind": "click",
+   "gain": 1
+  },
+  {
+   "t": 86.1,
+   "kind": "soft",
+   "gain": 0.5
+  },
+  {
+   "t": 94.1,
+   "kind": "key",
+   "gain": 0.45
+  },
+  {
+   "t": 94.2,
+   "kind": "key",
+   "gain": 0.45
+  },
+  {
+   "t": 94.3,
+   "kind": "key",
+   "gain": 0.45
+  },
+  {
+   "t": 94.4,
+   "kind": "key",
+   "gain": 0.45
+  },
+  {
+   "t": 94.5,
+   "kind": "key",
+   "gain": 0.45
+  },
+  {
+   "t": 94.6,
+   "kind": "key",
+   "gain": 0.45
+  },
+  {
+   "t": 94.7,
+   "kind": "key",
+   "gain": 0.45
+  },
+  {
+   "t": 94.8,
+   "kind": "key",
+   "gain": 0.45
+  },
+  {
+   "t": 94.9,
+   "kind": "key",
+   "gain": 0.45
+  },
+  {
+   "t": 95,
+   "kind": "key",
+   "gain": 0.45
+  },
+  {
+   "t": 95.1,
+   "kind": "key",
+   "gain": 0.45
+  },
+  {
+   "t": 95.2,
+   "kind": "key",
+   "gain": 0.45
+  },
+  {
+   "t": 95.3,
+   "kind": "key",
+   "gain": 0.45
+  },
+  {
+   "t": 95.4,
+   "kind": "key",
+   "gain": 0.45
+  },
+  {
+   "t": 95.5,
+   "kind": "key",
+   "gain": 0.45
+  },
+  {
+   "t": 96,
+   "kind": "click",
+   "gain": 1
+  },
+  {
+   "t": 96.2,
+   "kind": "soft",
+   "gain": 0.5
+  },
+  {
+   "t": 99.5,
+   "kind": "key",
+   "gain": 0.45
+  },
+  {
+   "t": 99.6,
+   "kind": "key",
+   "gain": 0.45
+  },
+  {
+   "t": 99.7,
+   "kind": "key",
+   "gain": 0.45
+  },
+  {
+   "t": 99.8,
+   "kind": "key",
+   "gain": 0.45
+  },
+  {
+   "t": 99.9,
+   "kind": "key",
+   "gain": 0.45
+  },
+  {
+   "t": 100,
+   "kind": "key",
+   "gain": 0.45
+  },
+  {
+   "t": 100.1,
+   "kind": "key",
+   "gain": 0.45
+  },
+  {
+   "t": 100.2,
+   "kind": "key",
+   "gain": 0.45
+  },
+  {
+   "t": 100.3,
+   "kind": "key",
+   "gain": 0.45
+  },
+  {
+   "t": 100.4,
+   "kind": "key",
+   "gain": 0.45
+  },
+  {
+   "t": 100.5,
+   "kind": "key",
+   "gain": 0.45
+  },
+  {
+   "t": 100.6,
+   "kind": "key",
+   "gain": 0.45
+  },
+  {
+   "t": 100.7,
+   "kind": "key",
+   "gain": 0.45
+  },
+  {
+   "t": 100.8,
+   "kind": "key",
+   "gain": 0.45
+  },
+  {
+   "t": 100.9,
+   "kind": "key",
+   "gain": 0.45
+  },
+  {
+   "t": 101.4,
+   "kind": "click",
+   "gain": 1
+  },
+  {
+   "t": 101.6,
+   "kind": "soft",
+   "gain": 0.5
+  },
+  {
+   "t": 106.7,
+   "kind": "slide",
+   "gain": 0.8
+  }
+ ]
+}

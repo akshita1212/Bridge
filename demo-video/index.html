@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bridge Demo Video</title>
+<link rel="stylesheet" href="snap/assets/fonts/local.css">
+<style>
+/* The map of this folder: the final video, every scene with its still, caption and the real screen it uses,
+   and where each file lives. Bridge's own palette and type. */
+:root { --paper: #F6F7ED; --sunk: #ECEEE1; --card: #FFFFFF; --ink: #001F3F; --soft: #4C5A55; --line: rgba(0,31,63,.12);
+  --lime: #DBE64C; --on-lime: #232900; --lime-ink: #4A5200; --green: #00804C;
+  --font: "Plus Jakarta Sans", system-ui, sans-serif; --mono: "DM Mono", ui-monospace, monospace; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --paper: #141712; --sunk: #1C201A; --card: #232820; --ink: #ECEFE2; --soft: #A6B09D; --line: rgba(236,239,226,.12); --lime-ink: #D3DE55; --green: #5BD39A; color-scheme: dark; } }
+:root[data-theme="dark"] { --paper: #141712; --sunk: #1C201A; --card: #232820; --ink: #ECEFE2; --soft: #A6B09D; --line: rgba(236,239,226,.12); --lime-ink: #D3DE55; --green: #5BD39A; color-scheme: dark; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--paper); color: var(--ink); font: 16px/1.6 var(--font); -webkit-font-smoothing: antialiased; }
+h1, h2, h3, p { margin: 0; } h1, h2 { letter-spacing: -.02em; text-wrap: balance; }
+a { color: inherit; }
+:focus-visible { outline: 3px solid var(--lime); outline-offset: 3px; border-radius: 6px; }
+.wrap { max-width: 1180px; margin: 0 auto; padding-inline: 16px; }
+.hero { padding-block: 48px 28px; display: grid; gap: 14px; }
+.brand { display: inline-flex; align-items: center; gap: 10px; font-weight: 800; }
+.brand i { width: 30px; height: 30px; border-radius: 9px; background: var(--lime); color: var(--on-lime); display: grid; place-items: center; font-style: normal; }
+.hero h1 { font-size: clamp(32px, 5vw, 56px); line-height: 1.05; font-weight: 800; max-width: 18ch; }
+.lede { color: var(--soft); max-width: 46em; }
+.actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 6px; }
+.btn { display: inline-flex; align-items: center; gap: 8px; padding: 10px 16px; border-radius: 12px; text-decoration: none; font-weight: 700; font-size: 15px; border: 1px solid var(--line); background: var(--card); }
+.btn.primary { background: var(--ink); color: var(--paper); border-color: transparent; }
+video { width: 100%; border-radius: 16px; border: 1px solid var(--line); background: #F6F7ED; display: block; }
+section { padding-block: 36px 8px; }
+h2 { font-size: 26px; font-weight: 800; margin-bottom: 6px; }
+.sub { color: var(--soft); margin-bottom: 18px; }
+.scenes { display: grid; gap: 14px; }
+.scene { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 18px; padding: 14px; border-radius: 16px; background: var(--card); border: 1px solid var(--line); align-items: start; }
+.scene img { width: 100%; height: auto; aspect-ratio: 16 / 9; border-radius: 10px; display: block; border: 1px solid var(--line); }
+.meta { display: grid; gap: 8px; min-width: 0; }
+.tag { justify-self: start; font: 500 12px/1 var(--mono); letter-spacing: .06em; padding: 5px 8px; border-radius: 6px; background: var(--lime); color: var(--on-lime); }
+.meta h3 { font-size: 20px; font-weight: 800; line-height: 1.25; }
+.meta p { color: var(--soft); font-size: 15px; }
+.links { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 2px; }
+.links a, .links span { font: 500 12.5px/1 var(--mono); padding: 6px 9px; border-radius: 6px; background: var(--sunk); color: var(--soft); text-decoration: none; }
+.links a:hover { color: var(--ink); }
+table { width: 100%; border-collapse: collapse; font-size: 14.5px; background: var(--card); border-radius: 14px; overflow: hidden; border: 1px solid var(--line); }
+th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font: 500 12px var(--mono); text-transform: uppercase; letter-spacing: .06em; color: var(--soft); background: var(--sunk); }
+td code { font: 13px var(--mono); }
+.tablewrap { overflow-x: auto; }
+.callout { margin-top: 14px; padding: 14px 16px; border-radius: 14px; background: var(--lime); color: var(--on-lime); font-weight: 600; }
+footer { padding-block: 40px 56px; color: var(--soft); font-size: 14px; }
+@media (max-width: 760px) { .scene { grid-template-columns: minmax(0, 1fr); } }
+</style>
+</head>
+<body>
+<header class="hero wrap">
+  <span class="brand"><i>⟡</i> Bridge</span>
+  <h1>Bridge product demo, and how it is made.</h1>
+  <p class="lede">A 1 min 52 s film of the real Bridge app, frozen on its demo project and animated frame by frame. Everything that made it is in this folder: the screens, the film script, the tools, the sound and the outputs. Change the words, the timing or the screens, and render a new cut.</p>
+  <div class="actions">
+    <a class="btn primary" href="player.html">Open the live player</a>
+    <a class="btn" href="output/bridge-product-demo.mp4">Final video (full quality)</a>
+    <a class="btn" href="output/bridge-product-demo-share.mp4">Share copy</a>
+    <a class="btn" href="README.md">README</a>
+    <a class="btn" href="SKILL.md">Skill (for Claude)</a>
+  </div>
+</header>
+
+<main class="wrap">
+  <video src="output/bridge-product-demo-share.mp4" controls preload="metadata" poster="output/stills/00-title.webp"></video>
+  <p class="callout">Music credit to add wherever the film is shared: "Music: Sascha Ende, ende.app (CC BY 4.0)".</p>
+
+  <section>
+    <h2>The scenes</h2>
+    <p class="sub">Times are seconds into the film. "Screen" opens the frozen page of the real app that the scene animates; "Player" opens the live film at that moment.</p>
+    <div class="scenes" id="scenes"></div>
+  </section>
+
+  <section>
+    <h2>What's in this folder</h2>
+    <p class="sub">The film is a web page (<code>film/index.html</code>) whose every frame is a function of time. The tools render it to video.</p>
+    <div class="tablewrap"><table>
+      <thead><tr><th>Path</th><th>What it is</th><th>Edit it to…</th></tr></thead>
+      <tbody>
+        <tr><td><code>film/film.js</code></td><td>The film script: the timeline (<code>TL</code>), the chapter captions, the camera, cursor, notes and what changes on each screen</td><td>change words, timing, notes, camera</td></tr>
+        <tr><td><code>film/index.html</code></td><td>The stage: title card, captions, cursor, thank-you card, and their styles</td><td>change the title, the end card, colours</td></tr>
+        <tr><td><code>film/engine.js</code></td><td>The motion engine (springs, camera, cursor, notes, captions)</td><td>rarely</td></tr>
+        <tr><td><code>snap/&lt;name&gt;/</code></td><td>Frozen screens of the real Bridge app (HTML + CSS), with <code>ref.png</code> screenshots</td><td>re-freeze when the app changes</td></tr>
+        <tr><td><code>shots/bridge.mjs</code></td><td>How each screen is frozen: route, clicks, typed text</td><td>add or change a screen</td></tr>
+        <tr><td><code>tools/</code></td><td>Freeze, stills, render, QA, contact sheet, fonts</td><td>—</td></tr>
+        <tr><td><code>audio/</code></td><td>Sound cues from the timeline, and the final mix for the player</td><td>re-mix after retiming</td></tr>
+        <tr><td><code>skills/</code></td><td>The product-film and film-sound skills used to make it (with the music and sound effects)</td><td>—</td></tr>
+        <tr><td><code>output/</code></td><td>Final video, share copy, a still of every scene, the storyboard sheet</td><td>—</td></tr>
+        <tr><td><code>STORYBOARD.md</code></td><td>Scenes, decisions and every round of feedback</td><td>plan the next cut</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+</main>
+
+<footer class="wrap">Bridge · product demo film. Real UI, sample data (the prototype's demo project). Fonts: Plus Jakarta Sans, DM Mono (SIL OFL). Music: Sascha Ende, ende.app (CC BY 4.0). Effects: Kenney (CC0).</footer>
+
+<script>
+const SCENES = [
+  { n: "00", t: "0–4.3", title: "Title", sub: "Bridge · “One shared understanding for every project.” · “Documents, decisions and people, in one place.”", what: "The mark and name arrive, the title comes in word by word, everything lifts away.", still: "00-title", screens: [], at: 1.5 },
+  { n: "01", t: "4.3–8.8", title: "One place for every project.", sub: "Documents, decisions and people come together, and Bridge turns them into one shared understanding.", what: "Home: the app comes in and zooms towards the Bridges.", still: "01-one-place", screens: ["home"], at: 6 },
+  { n: "02", t: "8.8–22.3", title: "Start a project, bring your team.", sub: "Name it, add the people, and say what each one does: product, design, engineering, research.", what: "New Bridge: the name and one line type in; Aditi (Product Manager), Rohan (Engineer) and Jo (Researcher) join; Create Bridge.", still: "02-create-project-roles", screens: ["create"], at: 18 },
+  { n: "03", t: "22.3–35.6", title: "Everyone adds what they have.", sub: "Over the weeks, documents, calls, designs and links arrive. Bridge reads every one.", what: "The sources arrive one by one with their dates (Jan 14 → Mar 6), then “Understanding ready”.", still: "03-sources-arrive", screens: ["ov"], at: 30 },
+  { n: "04", t: "35.6–47.6", title: "The Overview starts with a summary.", sub: "What the project is, where it stands, and who is on it in which role.", what: "The summary writes itself; the numbers; the people and their roles.", still: "04-overview-summary", screens: ["ov"], at: 43 },
+  { n: "05", t: "47.6–58.6", title: "Then what matters most.", sub: "The main idea and must-knows, then the open questions, blockers and needs.", what: "Scroll through the cards; a note on the blocker.", still: "05-what-matters", screens: ["ov"], at: 55 },
+  { n: "06", t: "58.6–68.6", title: "Every finding shows its proof.", sub: "Open any card to see the exact source it came from, and how confident Bridge is.", what: "Back to “Timeline revised to March 15”; the Insight evidence panel shows the source line and the Confidence bar fills to High.", still: "06-evidence-confidence", screens: ["evidence"], at: 64 },
+  { n: "07", t: "68.6–81.6", title: "Decisions move the timeline.", sub: "Further down the Overview: when a decision shifts a date, the Timeline shows it, and Decision impact says why.", what: "Milestones slip one by one, “Moved by a decision”; Decision impact; Activity.", still: "07-timeline-decisions", screens: ["ov"], at: 76 },
+  { n: "08", t: "81.6–93.1", title: "Ask the agent anything.", sub: "Answers come from the whole project, with the sources they came from.", what: "The lime corner button; “What's blocking us?” is typed (Send lights up); the answer with its sources.", still: "08-ask-the-agent", screens: ["agent0", "agent1"], at: 89 },
+  { n: "09", t: "93.1–106.7", title: "Get it as audio or video.", sub: "Ask for a summary to listen to or a short video, right in the chat.", what: "A 2-minute audio summary, then a short video, both in the chat.", still: "09-audio-or-video", screens: ["agent2", "agent3"], at: 102 },
+  { n: "10", t: "106.7–112", title: "Thank you.", sub: "Every project, understood.", what: "Paper rises with the mark and the thank-you line.", still: "10-thank-you", screens: [], at: 110 },
+];
+document.getElementById("scenes").innerHTML = SCENES.map(s => `
+  <article class="scene">
+    <a href="player.html#t=${s.at}"><img src="output/stills/${s.still}.webp" alt="Scene ${s.n}: ${s.title}" loading="lazy" width="1920" height="1080"></a>
+    <div class="meta">
+      <span class="tag">${s.n} · ${s.t} s</span>
+      <h3>${s.title}</h3>
+      <p>${s.sub}</p>
+      <p><b>On screen:</b> ${s.what}</p>
+      <div class="links">${s.screens.map(n => `<a href="snap/${n}/index.html">Screen: ${n}</a>`).join("")}<a href="player.html#t=${s.at}">Player at ${s.at} s</a><a href="output/stills/${s.still}.webp">Still</a></div>
+    </div>
+  </article>`).join("");
+</script>
+</body>
+</html>

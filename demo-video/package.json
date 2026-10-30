@@ -1,0 +1,6 @@
+{
+  "name": "product-film",
+  "private": true,
+  "type": "module",
+  "devDependencies": { "playwright": "^1.48.0", "ffmpeg-static": "^5.2.0" }
+}

@@ -1,0 +1,20 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><link rel="stylesheet" href="style.css"><style>html{scrollbar-width:none}::-webkit-scrollbar{display:none}*{caret-color:transparent!important}</style></head><body>
+<div class="app">
+  <aside class="nav"><b class="mark"></b><i></i><i class="on"></i><i></i><i></i></aside>
+  <section class="list">
+    <header><h1>Leads</h1><input class="search" placeholder="Search" value="" style=""></header>
+    <ul id="rows"><li class="row is-new" data-row="0"><b>Ingrid Haugen</b><span>Is the cat okay? And could I see it this weekend?</span><small>Fjellsiden 12 · 301</small></li><li class="row" data-row="1"><b>Ahmed Rahimi</b><span>Can we come to a viewing on Saturday?</span><small>Fjellsiden 12 · 103</small></li><li class="row" data-row="2"><b>Marta Kowalska</b><span>Does the deposit have to be three months?</span><small>Fjellsiden 12 · 203</small></li><li class="row" data-row="3"><b>Lars Ove Dahl</b><span>Is there parking in the back yard?</span><small>Kalfaret 3 · 12</small></li></ul>
+  </section>
+  <section class="detail">
+    <header>
+      <div><h2 id="name">Ingrid Haugen</h2><p id="unit">Flat 301 · Fjellsiden 12</p></div>
+      <div class="score"><span>Score</span><b id="score">40</b></div>
+    </header>
+    <div class="thread" id="thread"><div class="msg them"><p>Hi! I just applied for 301. I'm a nurse moving from Oslo in December.</p></div><div class="msg us"><p>Welcome, Ingrid! Your application is in. Any questions about the flat?</p></div><div class="msg them"><p>Is the cat okay? And could I see it this weekend?</p></div></div>
+    <footer class="composer"><input id="reply" placeholder="Write a reply" value="" style=""><button id="send">Send</button></footer>
+  </section>
+</div>
+
+
+
+</body><script>for(const e of document.querySelectorAll('[data-snap-scroll]')){const[x,y]=e.dataset.snapScroll.split(',');e.scrollLeft=+x;e.scrollTop=+y}</script></html>

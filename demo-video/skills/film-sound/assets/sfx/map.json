@@ -1,0 +1,19 @@
+{
+  "_about": "Cue kind → real recordings (paths relative to this file). gain is linear, at shifts the start in seconds, filter is an ffmpeg audio filter. key, click, tap and key-real are built into mix.mjs.",
+  "logo": [
+    { "file": "interface/switch_007.ogg", "gain": 0.55, "at": -0.01 },
+    { "file": "impact/impactSoft_medium_001.ogg", "gain": 0.3, "filter": "lowpass=f=900" }
+  ],
+  "slide": [
+    { "file": "casino/card-slide-1.ogg", "gain": 0.26, "at": -0.12, "filter": "lowpass=f=4200,highpass=f=180,afade=t=in:d=0.04" }
+  ],
+  "soft": [
+    { "file": "impact/impactSoft_medium_001.ogg", "gain": 0.35 }
+  ],
+  "toggle": [
+    { "file": "interface/switch_002.ogg", "gain": 0.45 }
+  ],
+  "place": [
+    { "file": "casino/card-place-1.ogg", "gain": 0.3, "filter": "lowpass=f=5000" }
+  ]
+}

@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Example app</title>
+<!-- A stand-in for your real product. tools/snap.mjs freezes it exactly like a real route: the page asks /api/lead,
+     the shot answers with sample data, and the frozen copy lands in snap/app/. Replace it with your own app's routes. -->
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app">
+  <aside class="nav"><b class="mark"></b><i></i><i class="on"></i><i></i><i></i></aside>
+  <section class="list">
+    <header><h1>Leads</h1><input class="search" placeholder="Search"></header>
+    <ul id="rows"></ul>
+  </section>
+  <section class="detail">
+    <header>
+      <div><h2 id="name">…</h2><p id="unit">…</p></div>
+      <div class="score"><span>Score</span><b id="score">—</b></div>
+    </header>
+    <div class="thread" id="thread"></div>
+    <footer class="composer"><input id="reply" placeholder="Write a reply"><button id="send">Send</button></footer>
+  </section>
+</div>
+<script>
+fetch("/api/lead").then(r => r.json()).then(d => {
+  document.getElementById("rows").innerHTML = d.rows.map((r, i) => `<li class="row${i === 0 ? " is-new" : ""}" data-row="${i}"><b>${r.name}</b><span>${r.last}</span><small>${r.unit}</small></li>`).join("");
+  document.getElementById("name").textContent = d.lead.name;
+  document.getElementById("unit").textContent = d.lead.unit;
+  document.getElementById("score").textContent = d.lead.score;
+  document.getElementById("thread").innerHTML = d.lead.messages.map(m => `<div class="msg ${m.from}"><p>${m.text}</p></div>`).join("");
+}).catch(() => {});
+</script>
+</body>
+</html>

@@ -32,6 +32,12 @@ Tokens live in [src/styles/theme.css](src/styles/theme.css):
 - Status colors, elevation shadows, and the navy+lime "brand button" all flip
   correctly between modes via `--status-*`, `--shadow-*`, and `--btn-brand-*` tokens.
 
+## Product demo video
+
+[`demo-video/`](demo-video) holds a 1 min 52 s product demo of Bridge made from this app, with everything used to make
+it: the frozen screens, the film script, tools, sound, a live player, the final video and a guide
+([`demo-video/README.md`](demo-video/README.md), [`demo-video/SKILL.md`](demo-video/SKILL.md)).
+
 ## More
 
 See [docs/deployment.md](docs/deployment.md) for the API reference, data layout,

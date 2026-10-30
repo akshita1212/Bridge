@@ -1,0 +1,4 @@
+node_modules/
+render/
+audio/mix*.wav
+snap/*/frozen.png
