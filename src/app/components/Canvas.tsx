@@ -20,7 +20,7 @@ interface Props {
   canvasId: string;
 }
 
-type WorkspaceMode = "map" | "workspace" | "work";
+type WorkspaceMode = "map" | "timeline" | "workspace" | "work";
 
 interface Source {
   id: string;
@@ -150,7 +150,7 @@ const CW_TRACKING = [
   { label: "Context coverage", value: "71%", helper: "5 of 7 Map cards have source evidence", color: "#1E488F" },
   { label: "Review load", value: "1", helper: "Aditi has the next review handoff", color: "#8A9300" },
 ];
-const MAP_TEMPLATES = ["Overview","Understanding Map","Source Map","Decision Map","Work Map","Custom"];
+const MAP_TEMPLATES = ["Understanding Map","Project Timeline","Source Map","Decision Map","Work Map","Custom"];
 
 const MAP_CARDS: InsightCard[] = [
   {
@@ -240,7 +240,7 @@ const CARD_CONFIG = {
   action: { label: "Next Action", color: "#DBE64C", ink: "var(--accent-strong)", bg: "var(--status-warn-soft)", icon: ArrowRight, darkText: true },
 };
 
-const PROCESSING_MSGS = ["Updating…", "Map refreshed", "3 gaps found", "Reading new source…", "Timeline updated"];
+const PROCESSING_MSGS = ["Updating…", "Overview refreshed", "3 gaps found", "Reading new source…", "Timeline updated"];
 
 const CANVAS_TITLES: Record<string, string> = {
   "product-handoff": "Product Handoff — Cognitive Assessment Flow",
@@ -675,7 +675,7 @@ function ContentSourcesPanel({
             <motion.div initial={{ opacity: 0, scale: 0.97, y: 4 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.97 }} transition={{ duration: 0.12 }} className="fixed z-50 rounded-xl border border-border overflow-hidden" style={{ left: ctxMenu.x, top: ctxMenu.y, background: "var(--card)", boxShadow: "0 8px 32px rgba(0,31,63,0.14)", minWidth: 200 }}>
               {(isLivePanel
                 ? [["Open source", "Analyze source"], ["Remove source"]]
-                : [["Analyze changes","Open source","Open in Canvas","Add to Map","Add to main context","Keep as reference"],["Assign follow-up","Add comment","Mark private"],["View version history","Disconnect source"]]
+                : [["Analyze changes","Open source","Open in Canvas","Add to Overview","Add to main context","Keep as reference"],["Assign follow-up","Add comment","Mark private"],["View version history","Disconnect source"]]
               ).map((grp, gi) => (
                 <div key={gi} className={gi > 0 ? "border-t border-border" : ""}>
                   {grp.map(item => (
@@ -1033,11 +1033,11 @@ function MapMode({
   liveTasks,
   liveQuestions,
   onCreateTask,
-  overview,
+  summary,
 }: {
   onCardSelect: (id: string) => void;
   onSourceSelect: (id: string) => void;
-  overview?: React.ReactNode;
+  summary?: React.ReactNode;
   cards?: InsightCard[];
   workCounts?: { tasks: number; questions: number };
   liveTasks?: CwTask[];
@@ -1045,9 +1045,7 @@ function MapMode({
   onCreateTask?: (task: { title: string; assignee: string; status: string; priority: string; visibility: string; linked?: string }) => void;
 }) {
   const [templateOpen, setTemplateOpen] = useState(false);
-  const [activeTemplate, setActiveTemplate] = useState(() =>
-    overview && new URLSearchParams(window.location.search).get("view") !== "map" ? "Overview" : "Understanding Map");
-  const showOverview = !!overview && activeTemplate === "Overview";
+  const [activeTemplate, setActiveTemplate] = useState("Understanding Map");
   const [cardCtx, setCardCtx] = useState<{ x: number; y: number } | null>(null);
 
   const list = cards ?? MAP_CARDS;
@@ -1063,21 +1061,7 @@ function MapMode({
       <div className="flex-1 overflow-y-auto px-8 py-6">
         <div className="max-w-4xl mx-auto flex flex-col gap-8">
           <div className="flex items-center justify-between">
-            {overview ? (
-              <div className="flex items-center rounded-xl p-1 gap-0.5" style={{ background: "var(--secondary)" }} role="tablist" aria-label="Map views">
-                {[["Overview", "Overview"], ["Understanding Map", "Map"]].map(([id, label]) => {
-                  const on = activeTemplate === id || (id === "Understanding Map" && !showOverview);
-                  return (
-                    <button key={id} role="tab" aria-selected={on} onClick={() => setActiveTemplate(id)} className="px-3.5 py-1.5 rounded-lg transition-all"
-                      style={{ fontSize: "0.78rem", fontWeight: on ? 700 : 500, background: on ? "var(--card)" : "transparent", color: on ? "var(--foreground)" : "var(--muted-foreground)", boxShadow: on ? "var(--shadow-sm)" : "none" }}>
-                      {label}
-                    </button>
-                  );
-                })}
-              </div>
-            ) : (
-              <p style={{ fontSize: "0.7rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--muted-foreground)" }}>Understanding</p>
-            )}
+            <p style={{ fontSize: "0.7rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--muted-foreground)" }}>Understanding</p>
             <div className="relative">
               <button onClick={() => setTemplateOpen(o => !o)} className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-border hover:bg-secondary transition-colors" style={{ fontSize: "0.72rem", fontWeight: 500, color: "var(--muted-foreground)" }}>
                 <Map size={11} />View: {activeTemplate}
@@ -1100,8 +1084,8 @@ function MapMode({
             </div>
           </div>
 
-          {showOverview && overview}
-          {!showOverview && groups.length === 0 && (
+          {summary}
+          {groups.length === 0 && (
             <div className="flex flex-col items-center justify-center gap-3 py-20 text-center">
               <div className="w-11 h-11 rounded-xl flex items-center justify-center" style={{ background: "var(--space-accent-soft)" }}>
                 <Lightbulb size={18} style={{ color: "var(--space-accent)" }} />
@@ -1112,7 +1096,7 @@ function MapMode({
               </p>
             </div>
           )}
-          {!showOverview && groups.map((group) => (
+          {groups.map((group) => (
             <div key={group.label}>
               <p style={{ fontSize: "0.7rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--muted-foreground)", marginBottom: 12 }}>{group.label}</p>
               <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(auto-fill, minmax(280px, 1fr))` }}>
@@ -1147,15 +1131,16 @@ function MapMode({
   );
 }
 
-// ─── Overview ────────────────────────────────────────────────────────────────
-// The common context: what the project is, who is in it, how the timeline is
-// moving and which decisions moved it, and what has been added over time.
+// ─── Overview summary + Timeline ─────────────────────────────────────────────
+// The Overview opens with a short summary of the whole project (what it is,
+// who is on it and in which role). The Timeline space shows how the plan is
+// moving, which decisions moved it, and what has been added over time.
 
-const OVERVIEW_PEOPLE = [
-  { initials: "AK", name: "Akshat",       role: "Owner",       color: "#001F3F" },
-  { initials: "AR", name: "Aditi Sharma", role: "Editor",      color: "#1E488F" },
-  { initials: "RM", name: "Rohan Mehta",  role: "Contributor", color: "#00804C" },
-  { initials: "JC", name: "Jo Chen",      role: "Contributor", color: "#74C365" },
+const PROJECT_PEOPLE = [
+  { initials: "AK", name: "Akshat",       role: "Designer",        color: "#001F3F" },
+  { initials: "AR", name: "Aditi Sharma", role: "Product Manager", color: "#1E488F" },
+  { initials: "RM", name: "Rohan Mehta",  role: "Engineer",        color: "#00804C" },
+  { initials: "JC", name: "Jo Chen",      role: "Researcher",      color: "#74C365" },
 ];
 
 const MILESTONES = [
@@ -1180,139 +1165,153 @@ const ACTIVITY = [
   { when: "Mar 6",  who: "AR", what: "changed", item: "Design Brief — Q1 2025" },
 ];
 
-function OverviewMode({ onSourceSelect, sourceCount, live }: { onSourceSelect: (id: string) => void; sourceCount: number; live?: BridgeState | null }) {
-  const sectionLabel = { fontSize: "0.7rem", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: "var(--muted-foreground)" };
-  const done = MILESTONES.filter((m) => m.state === "done").length;
-  const progress = (done - 1 + 0.45) / (MILESTONES.length - 1);
-  const personColor = (i: string) => OVERVIEW_PEOPLE.find((p) => p.initials === i)?.color ?? "var(--ink)";
+const sectionLabel = { fontSize: "0.7rem", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: "var(--muted-foreground)" };
 
+function ProjectSummary({ sourceCount, live, onOpenTimeline }: { sourceCount: number; live?: BridgeState | null; onOpenTimeline: () => void }) {
   if (live) {
     return (
-      <div className="flex flex-col gap-6" data-testid="overview">
-        <div className="rounded-2xl border border-border p-6" style={{ background: "var(--card)" }}>
-          <p style={sectionLabel}>Common context · {live.sources.length} sources</p>
-          <p style={{ fontSize: "1.1rem", fontWeight: 700, marginTop: 10, lineHeight: 1.4 }}>{live.bridge.subtitle || live.bridge.title}</p>
-        </div>
-        <div>
-          <p style={{ ...sectionLabel, marginBottom: 12 }}>Activity</p>
-          <div className="flex flex-col gap-1.5">
-            {live.activity.slice(0, 8).map((a) => (
-              <div key={a.id} className="flex items-center gap-3 px-3 py-2 rounded-xl" style={{ background: "var(--card)", fontSize: "0.82rem" }}>
-                <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.68rem", color: "var(--muted-foreground)", width: 70 }}>{timeAgo(a.created_at)}</span>
-                <span style={{ fontWeight: 600 }}>{a.event}</span>
-                <span className="truncate" style={{ color: "var(--muted-foreground)" }}>{a.detail}</span>
-              </div>
-            ))}
-          </div>
-        </div>
+      <div className="rounded-2xl border border-border p-6" style={{ background: "var(--card)" }} data-testid="summary">
+        <p style={sectionLabel}>Summary · {live.sources.length} sources</p>
+        <p style={{ fontSize: "1.1rem", fontWeight: 700, marginTop: 10, lineHeight: 1.4 }}>{live.bridge.subtitle || live.bridge.title}</p>
       </div>
     );
   }
+  return (
+    <div className="rounded-2xl border p-6 flex flex-col gap-4" style={{ background: "var(--card)", borderColor: "var(--border)", boxShadow: "0 1px 4px rgba(0,31,63,0.05)" }} data-testid="summary">
+      <div className="flex items-center gap-2">
+        <span className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ background: "#DBE64C" }}><Lightbulb size={12} style={{ color: "#001F3F" }} /></span>
+        <p style={sectionLabel}>Summary · from {sourceCount} sources</p>
+      </div>
+      <p style={{ fontSize: "1.3rem", fontWeight: 700, lineHeight: 1.3, letterSpacing: "-0.02em" }} data-testid="summary-headline">
+        Redesign the decision gateway so fewer people drop off, and hand it over by March 29.
+      </p>
+      <p style={{ fontSize: "0.9rem", lineHeight: 1.65, color: "var(--muted-foreground)", maxWidth: 720 }} data-testid="summary-body">
+        Research shows the gateway is where people get overloaded: 34% drop off there. The team chose to split it into three small decisions.
+        Delivery moved two weeks after the stakeholder interview, and node D4 still has to be added to the framework.
+      </p>
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-3 pt-4 border-t border-border" data-testid="summary-stats">
+        {[[String(sourceCount), "Sources"], ["4", "People"], ["2", "Decisions"], ["1", "Blocker"]].map(([n, l]) => (
+          <div key={l} className="flex items-baseline gap-1.5"><span style={{ fontSize: "1.15rem", fontWeight: 700 }}>{n}</span><span style={{ fontSize: "0.78rem", color: "var(--muted-foreground)" }}>{l}</span></div>
+        ))}
+        <button onClick={onOpenTimeline} className="flex items-center gap-1.5 px-2.5 py-1 rounded-full ml-auto hover:opacity-90" style={{ background: "var(--status-warn-soft)", color: "var(--accent-strong)", fontSize: "0.72rem", fontWeight: 700 }} data-testid="timeline-chip">
+          <Clock size={11} />Handoff moved 9 days · see Timeline
+        </button>
+      </div>
+      <div className="flex flex-wrap items-center gap-2" data-testid="people-row">
+        {PROJECT_PEOPLE.map((p) => (
+          <div key={p.initials} className="flex items-center gap-2 pl-1 pr-3 py-1 rounded-full border border-border" style={{ background: "var(--background)" }}>
+            <span className="w-6 h-6 rounded-full flex items-center justify-center" style={{ background: p.color, color: "#fff", fontSize: "0.55rem", fontWeight: 800 }}>{p.initials}</span>
+            <span style={{ fontSize: "0.76rem", fontWeight: 600 }}>{p.name}</span>
+            <span style={{ fontSize: "0.68rem", color: "var(--muted-foreground)" }}>{p.role}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function TimelineView({ onSourceSelect, live }: { onSourceSelect: (id: string) => void; live?: BridgeState | null }) {
+  const done = MILESTONES.filter((m) => m.state === "done").length;
+  const progress = (done - 1 + 0.45) / (MILESTONES.length - 1);
+  const personColor = (i: string) => PROJECT_PEOPLE.find((p) => p.initials === i)?.color ?? "var(--ink)";
 
   return (
-    <div className="flex flex-col gap-8" data-testid="overview">
-      {/* Common context */}
-      <div className="rounded-2xl border p-6 flex flex-col gap-4" style={{ background: "var(--card)", borderColor: "var(--border)", boxShadow: "0 1px 4px rgba(0,31,63,0.05)" }} data-testid="common-context">
-        <div className="flex items-center gap-2">
-          <span className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ background: "#DBE64C" }}><Lightbulb size={12} style={{ color: "#001F3F" }} /></span>
-          <p style={sectionLabel}>Common context · built from {sourceCount} sources</p>
-        </div>
-        <p style={{ fontSize: "1.3rem", fontWeight: 800, lineHeight: 1.3, letterSpacing: "-0.02em" }} data-testid="context-headline">
-          Redesign the decision gateway so fewer people drop off, and hand it over by March 29.
-        </p>
-        <p style={{ fontSize: "0.9rem", lineHeight: 1.65, color: "var(--muted-foreground)", maxWidth: 720 }} data-testid="context-body">
-          Research shows the gateway is where people get overloaded: 34% drop off there. The team chose to split it into three small decisions.
-          Delivery moved two weeks after the stakeholder interview, and node D4 still has to be added to the framework.
-        </p>
-        <div className="flex flex-wrap items-center gap-x-6 gap-y-3 pt-4 border-t border-border">
-          {[[String(sourceCount), "Sources"], ["4", "People"], ["2", "Decisions"], ["1", "Blocker"]].map(([n, l]) => (
-            <div key={l} className="flex items-baseline gap-1.5"><span style={{ fontSize: "1.15rem", fontWeight: 800 }}>{n}</span><span style={{ fontSize: "0.78rem", color: "var(--muted-foreground)" }}>{l}</span></div>
-          ))}
-          <div className="flex items-center gap-1.5 ml-auto" data-testid="people-row">
-            {OVERVIEW_PEOPLE.map((p) => (
-              <div key={p.initials} className="flex items-center gap-1.5 pl-1 pr-2.5 py-1 rounded-full border border-border" style={{ background: "var(--background)" }}>
-                <span className="w-5 h-5 rounded-full flex items-center justify-center" style={{ background: p.color, color: "#fff", fontSize: "0.5rem", fontWeight: 800 }}>{p.initials}</span>
-                <span style={{ fontSize: "0.7rem", fontWeight: 600 }}>{p.name.split(" ")[0]}</span>
-                <span style={{ fontSize: "0.62rem", color: "var(--muted-foreground)" }}>{p.role}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Timeline */}
-      <div data-testid="timeline">
-        <div className="flex items-center justify-between mb-3">
-          <p style={sectionLabel}>Timeline</p>
-          <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full" style={{ background: "var(--status-warn-soft)", color: "var(--accent-strong)", fontSize: "0.7rem", fontWeight: 700 }}>
-            <Clock size={11} />Handoff moved 9 days by 2 decisions
-          </span>
-        </div>
-        <div className="rounded-2xl border border-border px-6 pt-6 pb-5" style={{ background: "var(--card)" }}>
-          <div className="relative" style={{ height: 6, borderRadius: 3, background: "var(--secondary)", margin: "0 7%" }}>
-            <div data-testid="timeline-fill" style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: `${progress * 100}%`, borderRadius: 3, background: "var(--status-positive)" }} />
-          </div>
-          <div className="grid mt-[-13px]" style={{ gridTemplateColumns: `repeat(${MILESTONES.length}, 1fr)` }}>
-            {MILESTONES.map((m) => {
-              const moved = m.planned !== m.now;
-              return (
-                <div key={m.label} className="flex flex-col items-center text-center gap-1.5" data-testid="milestone">
-                  <span className="w-5 h-5 rounded-full flex items-center justify-center" style={{
-                    background: m.state === "done" ? "var(--status-positive)" : m.state === "active" ? "#DBE64C" : "var(--card)",
-                    border: m.state === "next" ? "2px solid var(--border)" : "2px solid var(--card)", boxShadow: "0 0 0 1px var(--border)" }}>
-                    {m.state === "done" && <Check size={10} style={{ color: "#fff" }} />}
-                  </span>
-                  <p style={{ fontSize: "0.8rem", fontWeight: 700, marginTop: 4 }}>{m.label}</p>
-                  <p style={{ fontSize: "0.74rem", fontFamily: "var(--font-mono)" }}>
-                    {moved && <span data-testid="planned" style={{ textDecoration: "line-through", color: "var(--muted-foreground)", marginRight: 6 }}>{m.planned}</span>}
-                    <span data-testid="now" style={{ fontWeight: 700, color: moved ? "var(--status-danger)" : "var(--foreground)" }}>{m.now}</span>
-                  </p>
-                  {moved && <span data-testid="moved-tag" style={{ fontSize: "0.6rem", fontWeight: 700, padding: "2px 7px", borderRadius: 99, background: "var(--status-danger-soft)", color: "var(--status-danger)" }}>Moved by a decision</span>}
+    <div className="flex-1 overflow-y-auto px-8 py-6" data-testid="timeline-scroll">
+      <div className="max-w-4xl mx-auto flex flex-col gap-8" data-testid="timeline-view">
+        {live ? (
+          <div>
+            <p style={{ ...sectionLabel, marginBottom: 12 }}>Activity</p>
+            <div className="flex flex-col gap-1.5">
+              {live.activity.slice(0, 12).map((a) => (
+                <div key={a.id} className="flex items-center gap-3 px-3 py-2 rounded-xl" style={{ background: "var(--card)", fontSize: "0.82rem" }}>
+                  <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.68rem", color: "var(--muted-foreground)", width: 70 }}>{timeAgo(a.created_at)}</span>
+                  <span style={{ fontWeight: 600 }}>{a.event}</span>
+                  <span className="truncate" style={{ color: "var(--muted-foreground)" }}>{a.detail}</span>
                 </div>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-
-      {/* Decision impact */}
-      <div data-testid="impact">
-        <p style={{ ...sectionLabel, marginBottom: 4 }}>Decision impact</p>
-        <p style={{ fontSize: "0.8rem", color: "var(--muted-foreground)", marginBottom: 12 }}>What changed the timeline, and why.</p>
-        <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))" }}>
-          {DECISION_IMPACT.map((d) => {
-            const cfg = CARD_CONFIG[d.kind];
-            const Icon = cfg.icon;
-            return (
-              <div key={d.title} className="rounded-2xl border p-4 flex flex-col gap-2" style={{ background: cfg.bg, borderColor: cfg.color + "22" }} data-testid="impact-card">
-                <div className="flex items-center justify-between">
-                  <span className="flex items-center gap-1.5" style={{ fontSize: "0.67rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: cfg.ink }}><Icon size={12} />{cfg.label}</span>
-                  <span style={{ fontSize: "0.68rem", fontFamily: "var(--font-mono)", color: "var(--muted-foreground)" }}>{d.date}</span>
-                </div>
-                <p style={{ fontWeight: 700, fontSize: "0.88rem", lineHeight: 1.35 }}>{d.title}</p>
-                <p style={{ fontSize: "0.78rem", lineHeight: 1.5, color: "var(--muted-foreground)" }}>{d.why}</p>
-                <div className="flex items-center gap-2 flex-wrap mt-1">
-                  <span className="flex items-center gap-1 px-2 py-1 rounded-lg" style={{ background: "var(--card)", fontSize: "0.7rem", fontWeight: 700, fontFamily: "var(--font-mono)", whiteSpace: "pre" }}><Clock size={10} />{d.effect}</span>
-                  {d.source && <SourceChip sourceId={d.source} onSelect={onSourceSelect} />}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Activity */}
-      <div data-testid="activity">
-        <p style={{ ...sectionLabel, marginBottom: 12 }}>Activity</p>
-        <div className="flex flex-col gap-1.5">
-          {ACTIVITY.map((a) => (
-            <div key={a.item} className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl border border-border" style={{ background: "var(--card)" }}>
-              <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.7rem", color: "var(--muted-foreground)", width: 52 }}>{a.when}</span>
-              <span className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: personColor(a.who), color: "#fff", fontSize: "0.55rem", fontWeight: 800 }}>{a.who}</span>
-              <span style={{ fontSize: "0.82rem" }}><b style={{ fontWeight: 700 }}>{OVERVIEW_PEOPLE.find((p) => p.initials === a.who)?.name}</b> {a.what} <span style={{ fontWeight: 600 }}>{a.item}</span></span>
+              ))}
             </div>
-          ))}
-        </div>
+          </div>
+        ) : (
+          <>
+            {/* Milestones: where the plan stands, and which dates decisions have moved */}
+            <div data-testid="timeline">
+              <div className="flex items-center justify-between mb-3">
+                <p style={sectionLabel}>Milestones</p>
+                <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full" style={{ background: "var(--status-warn-soft)", color: "var(--accent-strong)", fontSize: "0.7rem", fontWeight: 700 }} data-testid="tl-chip">
+                  <Clock size={11} />Handoff moved 9 days by 2 decisions
+                </span>
+              </div>
+              <div className="rounded-2xl border border-border px-6 pt-6 pb-5" style={{ background: "var(--card)" }}>
+                <div className="relative" style={{ height: 6, borderRadius: 3, background: "var(--secondary)", margin: "0 7%" }}>
+                  <div data-testid="timeline-fill" style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: `${progress * 100}%`, borderRadius: 3, background: "var(--status-positive)" }} />
+                </div>
+                <div className="grid mt-[-13px]" style={{ gridTemplateColumns: `repeat(${MILESTONES.length}, 1fr)` }}>
+                  {MILESTONES.map((m) => {
+                    const moved = m.planned !== m.now;
+                    return (
+                      <div key={m.label} className="flex flex-col items-center text-center gap-1.5" data-testid="milestone">
+                        <span className="w-5 h-5 rounded-full flex items-center justify-center" style={{
+                          background: m.state === "done" ? "var(--status-positive)" : m.state === "active" ? "#DBE64C" : "var(--card)",
+                          border: m.state === "next" ? "2px solid var(--border)" : "2px solid var(--card)", boxShadow: "0 0 0 1px var(--border)" }}>
+                          {m.state === "done" && <Check size={10} style={{ color: "#fff" }} />}
+                        </span>
+                        <p style={{ fontSize: "0.8rem", fontWeight: 700, marginTop: 4 }}>{m.label}</p>
+                        <p style={{ fontSize: "0.74rem", fontFamily: "var(--font-mono)" }}>
+                          {moved && <span data-testid="planned" style={{ textDecoration: "line-through", color: "var(--muted-foreground)", marginRight: 6 }}>{m.planned}</span>}
+                          <span data-testid="now" style={{ fontWeight: 700, color: moved ? "var(--status-danger)" : "var(--foreground)" }}>{m.now}</span>
+                        </p>
+                        {moved && <span data-testid="moved-tag" style={{ fontSize: "0.6rem", fontWeight: 700, padding: "2px 7px", borderRadius: 99, background: "var(--status-danger-soft)", color: "var(--status-danger)" }}>Moved by a decision</span>}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            {/* Decision impact: what changed the timeline, and why */}
+            <div data-testid="impact">
+              <p style={{ ...sectionLabel, marginBottom: 4 }}>Decision impact</p>
+              <p style={{ fontSize: "0.8rem", color: "var(--muted-foreground)", marginBottom: 12 }}>What changed the timeline, and why.</p>
+              <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))" }}>
+                {DECISION_IMPACT.map((d) => {
+                  const cfg = CARD_CONFIG[d.kind];
+                  const Icon = cfg.icon;
+                  return (
+                    <div key={d.title} className="rounded-2xl border p-4 flex flex-col gap-2" style={{ background: cfg.bg, borderColor: cfg.color + "22" }} data-testid="impact-card">
+                      <div className="flex items-center justify-between">
+                        <span className="flex items-center gap-1.5" style={{ fontSize: "0.67rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: cfg.ink }}><Icon size={12} />{cfg.label}</span>
+                        <span style={{ fontSize: "0.68rem", fontFamily: "var(--font-mono)", color: "var(--muted-foreground)" }}>{d.date}</span>
+                      </div>
+                      <p style={{ fontWeight: 700, fontSize: "0.88rem", lineHeight: 1.35 }}>{d.title}</p>
+                      <p style={{ fontSize: "0.78rem", lineHeight: 1.5, color: "var(--muted-foreground)" }}>{d.why}</p>
+                      <div className="flex items-center gap-2 flex-wrap mt-1">
+                        <span className="flex items-center gap-1 px-2 py-1 rounded-lg" style={{ background: "var(--card)", fontSize: "0.7rem", fontWeight: 700, fontFamily: "var(--font-mono)", whiteSpace: "pre" }}><Clock size={10} />{d.effect}</span>
+                        {d.source && <SourceChip sourceId={d.source} onSelect={onSourceSelect} />}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Activity: what the team added over time */}
+            <div data-testid="activity">
+              <p style={{ ...sectionLabel, marginBottom: 12 }}>Activity</p>
+              <div className="flex flex-col gap-1.5">
+                {ACTIVITY.map((a) => {
+                  const who = PROJECT_PEOPLE.find((p) => p.initials === a.who);
+                  return (
+                    <div key={a.item} className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl border border-border" style={{ background: "var(--card)" }}>
+                      <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.7rem", color: "var(--muted-foreground)", width: 52 }}>{a.when}</span>
+                      <span className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: personColor(a.who), color: "#fff", fontSize: "0.55rem", fontWeight: 800 }}>{a.who}</span>
+                      <span style={{ fontSize: "0.82rem" }}><b style={{ fontWeight: 700 }}>{who?.name}</b> <span style={{ color: "var(--muted-foreground)" }}>({who?.role})</span> {a.what} <span style={{ fontWeight: 600 }}>{a.item}</span></span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
@@ -1475,7 +1474,7 @@ function PDFViewer({ onAnnotate }: { onAnnotate: (text: string) => void }) {
           { icon: Highlighter, label: "Highlight" },
           { icon: StickyNote, label: "Sticky note" },
           { icon: Lightbulb, label: "Explain this" },
-          { icon: GitBranch, label: "Add to Map" },
+          { icon: GitBranch, label: "Add to Overview" },
           { icon: Bookmark, label: "Save quote" },
         ].map((action) => (
           <button
@@ -1555,7 +1554,7 @@ function VideoViewer({ onAnnotate }: { onAnnotate: (text: string) => void }) {
         {[
           { icon: Scissors, label: "Clip this" },
           { icon: Lightbulb, label: "Explain this moment" },
-          { icon: GitBranch, label: "Add to Map" },
+          { icon: GitBranch, label: "Add to Overview" },
           { icon: StickyNote, label: "Timestamp note" },
         ].map((action) => (
           <button
@@ -1639,7 +1638,7 @@ function AudioViewer({ onAnnotate }: { onAnnotate: (text: string) => void }) {
       <div className="flex items-center gap-2 pb-4 border-b border-border">
         {[
           { icon: Lightbulb, label: "Explain this" },
-          { icon: GitBranch, label: "Add to Map" },
+          { icon: GitBranch, label: "Add to Overview" },
           { icon: StickyNote, label: "Timestamp note" },
           { icon: Video, label: "Create visual" },
         ].map((action) => (
@@ -1725,7 +1724,7 @@ function ImageViewer({ onAnnotate }: { onAnnotate: (text: string) => void }) {
           { icon: Pin, label: "Pin note" },
           { icon: Scissors, label: "Crop / Select" },
           { icon: Lightbulb, label: "Explain this visual" },
-          { icon: GitBranch, label: "Connect to Map" },
+          { icon: GitBranch, label: "Connect to Overview" },
         ].map((action) => (
           <button
             key={action.label}
@@ -1852,7 +1851,7 @@ function SourcesMode({
         {(active?.type === "note" || active?.type === "link") && (
           <div className="flex-1 overflow-y-auto px-8 py-6">
             <div className="flex items-center gap-2 pb-4 border-b border-border mb-5">
-              {[{ icon: Highlighter, label: "Highlight" }, { icon: GitBranch, label: "Add to Map" }, { icon: Lightbulb, label: "Explain this" }].map((a) => (
+              {[{ icon: Highlighter, label: "Highlight" }, { icon: GitBranch, label: "Add to Overview" }, { icon: Lightbulb, label: "Explain this" }].map((a) => (
                 <button key={a.label} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border hover:bg-secondary transition-colors" style={{ fontSize: "0.775rem", fontWeight: 500, color: "var(--muted-foreground)" }} onClick={() => onAnnotate(a.label)}>
                   <a.icon size={13} />
                   {a.label}
@@ -1915,32 +1914,32 @@ function SourceDocumentPreview({
     pdf: [
       { icon: Highlighter, label: "Highlight" },
       { icon: StickyNote, label: "Add note" },
-      { icon: GitBranch, label: "Add to Map" },
+      { icon: GitBranch, label: "Add to Overview" },
     ],
     video: [
       { icon: Play, label: "Play moment" },
       { icon: Scissors, label: "Clip" },
-      { icon: GitBranch, label: "Add to Map" },
+      { icon: GitBranch, label: "Add to Overview" },
     ],
     audio: [
       { icon: Play, label: "Play" },
       { icon: StickyNote, label: "Timestamp note" },
-      { icon: GitBranch, label: "Add to Map" },
+      { icon: GitBranch, label: "Add to Overview" },
     ],
     image: [
       { icon: Pin, label: "Pin note" },
       { icon: Lightbulb, label: "Explain visual" },
-      { icon: GitBranch, label: "Add to Map" },
+      { icon: GitBranch, label: "Add to Overview" },
     ],
     link: [
       { icon: Globe, label: "Open link" },
       { icon: Lightbulb, label: "Extract insight" },
-      { icon: GitBranch, label: "Add to Map" },
+      { icon: GitBranch, label: "Add to Overview" },
     ],
     note: [
       { icon: Highlighter, label: "Highlight" },
       { icon: MessageCircle, label: "Comment" },
-      { icon: GitBranch, label: "Add to Map" },
+      { icon: GitBranch, label: "Add to Overview" },
     ],
   };
 
@@ -2365,7 +2364,7 @@ function RightPanel({
             <div className="grid gap-2" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
               <DrawerActionButton icon={MessageCircle} label="Add note" onClick={() => onAnnotate("Note added to insight")} />
               <DrawerActionButton icon={Flag} label="Mark important" onClick={() => onAnnotate("Insight marked important")} />
-              <DrawerActionButton icon={GitBranch} label="Add to Map" onClick={() => onAnnotate("Insight added to Map")} />
+              <DrawerActionButton icon={GitBranch} label="Add to Overview" onClick={() => onAnnotate("Insight added to Overview")} />
               <DrawerActionButton icon={Lightbulb} label="Ask Bridge" onClick={() => onAnnotate("Ask Bridge — insight scoped")} />
               <DrawerActionButton icon={ArrowUpRight} label="Open original" onClick={() => firstSource && onSourceSelect(firstSource.id)} primary />
               <DrawerActionButton icon={BookOpen} label="Open in Canvas" onClick={onOpenWorkspace} />
@@ -2590,13 +2589,15 @@ function ContextWorkMode({ liveTasks, liveQuestions, onCreateTask }: { liveTasks
 // ─── Bottom Command Bar ──────────────────────────────────────────────────────
 
 const MODE_ITEMS = [
-  { id: "map"       as WorkspaceMode, icon: Map,      label: "Map",       hint: "Shared understanding" },
+  { id: "map"       as WorkspaceMode, icon: Map,      label: "Overview",  hint: "Shared understanding" },
+  { id: "timeline"  as WorkspaceMode, icon: Clock,    label: "Timeline",  hint: "Dates & decisions" },
   { id: "workspace" as WorkspaceMode, icon: BookOpen, label: "Workspace", hint: "Private canvas" },
   { id: "work"      as WorkspaceMode, icon: Target,   label: "Work",      hint: "Tasks & changes" },
 ];
 
 const SPACE_CLASS: Record<WorkspaceMode, string> = {
   map: "space-map",
+  timeline: "space-timeline",
   workspace: "space-workspace",
   work: "space-work",
 };
@@ -2612,7 +2613,9 @@ type BottomActionId =
   | "task"
   | "assign"
   | "comment"
-  | "changes";
+  | "changes"
+  | "decision"
+  | "milestone";
 
 const INPUT_ACTIONS_BY_MODE: Record<WorkspaceMode, { id: BottomActionId; icon: React.ElementType; label: string }[]> = {
   map: [
@@ -2621,6 +2624,12 @@ const INPUT_ACTIONS_BY_MODE: Record<WorkspaceMode, { id: BottomActionId; icon: R
     { id: "analyze", icon: Zap,       label: "Analyze" },
     { id: "refresh", icon: RefreshCw, label: "Refresh" },
     { id: "more",    icon: Plus,      label: "More" },
+  ],
+  timeline: [
+    { id: "upload",    icon: Upload, label: "Upload" },
+    { id: "decision",  icon: Target, label: "Log decision" },
+    { id: "milestone", icon: Flag,   label: "Add milestone" },
+    { id: "more",      icon: Plus,   label: "More" },
   ],
   workspace: [
     { id: "upload", icon: Upload,     label: "Upload" },
@@ -2931,6 +2940,10 @@ function MoreMenu({ mode, onClose, onSelect }: { mode: WorkspaceMode; onClose: (
       [{ icon: Zap, label: "Analyze all sources" }, { icon: RefreshCw, label: "Refresh Understanding" }, { icon: GitBranch, label: "View source coverage" }],
       [{ icon: BookOpen, label: "Open evidence drawer" }, { icon: Share2, label: "Share understanding" }],
     ],
+    timeline: [
+      [{ icon: Target, label: "Log decision" }, { icon: Flag, label: "Add milestone" }],
+      [{ icon: Zap, label: "Analyze timeline changes" }, { icon: Share2, label: "Share timeline" }],
+    ],
     workspace: [
       [{ icon: Globe, label: "Connect Google Drive" }, { icon: FileText, label: "Connect Microsoft file" }, { icon: Image, label: "Connect Figma file" }],
       [{ icon: StickyNote, label: "Add post-it" }, { icon: MessageCircle, label: "Start Bridge session" }, { icon: Map, label: "Create context frame" }],
@@ -2950,7 +2963,7 @@ function MoreMenu({ mode, onClose, onSelect }: { mode: WorkspaceMode; onClose: (
       <motion.div initial={{ opacity: 0, y: 8, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 6 }} transition={{ duration: 0.15, ease: [0.16,1,0.3,1] }} className="fixed bottom-28 left-1/2 -translate-x-1/2 z-50 w-64 rounded-2xl border border-border overflow-hidden" style={{ background: "var(--card)", boxShadow: "var(--shadow-lg)" }}>
         <div className="px-4 py-2.5 border-b border-border">
           <p style={{ fontSize: "0.72rem", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--muted-foreground)" }}>
-            {mode === "map" ? "Understanding actions" : mode === "workspace" ? "Canvas actions" : "Action Hub actions"}
+            {mode === "map" ? "Overview actions" : mode === "timeline" ? "Timeline actions" : mode === "workspace" ? "Canvas actions" : "Action Hub actions"}
           </p>
         </div>
         <div className="py-1">
@@ -3090,7 +3103,7 @@ function LiveSourceViewer({ source, onClose, onAnalyze, onDelete }: {
 export function Canvas({ theme, onToggleTheme, onNavigate, canvasId }: Props) {
   const [mode, setMode] = useState<WorkspaceMode>(() => {
     const fromUrl = new URLSearchParams(window.location.search).get("mode");
-    return fromUrl === "workspace" || fromUrl === "work" ? fromUrl : "map";
+    return fromUrl === "workspace" || fromUrl === "work" || fromUrl === "timeline" ? fromUrl : "map";
   });
   const [leftOpen, setLeftOpen] = useState(true);
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
@@ -3176,8 +3189,8 @@ export function Canvas({ theme, onToggleTheme, onNavigate, canvasId }: Props) {
   };
 
   const handleAnnotate = (action: string) => {
-    addToast(`${action} — Map updated`);
-    setProcessingMsg("Map updated");
+    addToast(`${action} — Overview updated`);
+    setProcessingMsg("Overview updated");
     setTimeout(() => setProcessingMsg(null), 3000);
   };
 
@@ -3193,7 +3206,7 @@ export function Canvas({ theme, onToggleTheme, onNavigate, canvasId }: Props) {
     if (!isLive && isEmptyMock) setIsEmptyMock(false);
     addToast(`${label} added — Bridge is reading…`);
     setProcessingMsg("Reading new source…");
-    setTimeout(() => { setProcessingMsg("Map refreshed"); setTimeout(() => setProcessingMsg(null), 2000); }, 2200);
+    setTimeout(() => { setProcessingMsg("Overview refreshed"); setTimeout(() => setProcessingMsg(null), 2000); }, 2200);
   };
 
   /* ── Live (persisted) actions ── */
@@ -3216,7 +3229,7 @@ export function Canvas({ theme, onToggleTheme, onNavigate, canvasId }: Props) {
       } else {
         addToast(`${files.length > 1 ? `${files.length} sources` : "Source"} added — understanding updated`);
       }
-      setProcessingMsg("Map refreshed");
+      setProcessingMsg("Overview refreshed");
     } catch (err) {
       addToast(`Upload failed — ${err instanceof Error ? err.message : "unknown error"}`);
       setProcessingMsg(null);
@@ -3309,11 +3322,29 @@ export function Canvas({ theme, onToggleTheme, onNavigate, canvasId }: Props) {
     if (id === "analyze") { runAnalysis(); return; }
     if (id === "refresh") {
       addToast("Understanding refreshed from current sources");
-      setProcessingMsg("Map refreshed");
+      setProcessingMsg("Overview refreshed");
       setTimeout(() => setProcessingMsg(null), 2200);
       return;
     }
     if (id === "changes") { runAnalysis("Reviewing changed files…"); return; }
+    if (id === "decision") {
+      setQuickAction({
+        title: "Log a decision",
+        description: "Write down what was decided. Bridge shows which dates it moves on the Timeline.",
+        placeholder: "Handoff waits for Framework v4 — moves to March 29…",
+        confirmLabel: "Log decision",
+      });
+      return;
+    }
+    if (id === "milestone") {
+      setQuickAction({
+        title: "Add a milestone",
+        description: "A date the team is working towards. Decisions that move it will show here.",
+        placeholder: "Usability test of the new gateway — March 22",
+        confirmLabel: "Add milestone",
+      });
+      return;
+    }
     if (id === "assign") {
       setQuickAction({
         title: "Assign context work",
@@ -3340,6 +3371,8 @@ export function Canvas({ theme, onToggleTheme, onNavigate, canvasId }: Props) {
     if (label.includes("post-it")) { setActiveAction("post-it"); return; }
     if (label.includes("task") || label.includes("Task")) { setActiveAction("task"); return; }
     if (label.includes("Assign")) { handleInputAction("assign"); return; }
+    if (label === "Log decision") { handleInputAction("decision"); return; }
+    if (label === "Add milestone") { handleInputAction("milestone"); return; }
     if (label.includes("comment") || label.includes("Comment")) { handleInputAction("comment"); return; }
     if (label.includes("Analyze") || label.includes("Review changed")) { runAnalysis(`${label} — started`); return; }
     if (label.includes("Refresh")) {
@@ -3584,7 +3617,12 @@ export function Canvas({ theme, onToggleTheme, onNavigate, canvasId }: Props) {
           ) : (
             <>
               {mode === "map" && (
-                <MapMode onCardSelect={handleCardSelect} onSourceSelect={handleSourceSelect} overview={<OverviewMode onSourceSelect={handleSourceSelect} sourceCount={isLive ? live.sources.length : CONNECTED_SOURCES.length} live={isLive ? live : null} />} cards={isLive ? (liveCards ?? []) as InsightCard[] : undefined} workCounts={isLive ? { tasks: live.tasks.filter(t => t.status !== "Done").length, questions: live.questions.filter(q => q.status === "Open").length } : undefined} liveTasks={isLive ? live.tasks.map(mapApiTask) : undefined} liveQuestions={isLive ? live.questions.map(mapApiQuestion) : undefined} onCreateTask={isLive ? liveCreateTask : undefined} />
+                <MapMode onCardSelect={handleCardSelect} onSourceSelect={handleSourceSelect} summary={<ProjectSummary sourceCount={isLive ? live.sources.length : CONNECTED_SOURCES.length} live={isLive ? live : null} onOpenTimeline={() => { setMode("timeline"); handlePanelClose(); }} />} cards={isLive ? (liveCards ?? []) as InsightCard[] : undefined} workCounts={isLive ? { tasks: live.tasks.filter(t => t.status !== "Done").length, questions: live.questions.filter(q => q.status === "Open").length } : undefined} liveTasks={isLive ? live.tasks.map(mapApiTask) : undefined} liveQuestions={isLive ? live.questions.map(mapApiQuestion) : undefined} onCreateTask={isLive ? liveCreateTask : undefined} />
+              )}
+              {mode === "timeline" && (
+                <div className="flex-1 flex flex-col overflow-hidden">
+                  <TimelineView onSourceSelect={handleSourceSelect} live={isLive ? live : null} />
+                </div>
               )}
               {mode === "workspace" && (
                 <div className="flex-1 flex flex-col overflow-hidden">

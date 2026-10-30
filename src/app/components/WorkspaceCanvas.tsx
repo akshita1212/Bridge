@@ -357,7 +357,7 @@ function ImageNode({ pos, selected, multiSelected, isDragging, onClick, onAction
         <AnimatePresence>
           {hovered && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.1 }} onClick={e => e.stopPropagation()}>
-              <HoverActions actions={["Explain visual", "Pin note", "Add to Map"]} onAction={onAction} />
+              <HoverActions actions={["Explain visual", "Pin note", "Add to Overview"]} onAction={onAction} />
             </motion.div>
           )}
         </AnimatePresence>
@@ -445,7 +445,7 @@ function PostItNode({ id, pos, text, sourceLabel, isPrivate = false, selected, i
       <AnimatePresence>
         {hovered && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="mt-2 flex gap-1 flex-wrap" onClick={e => e.stopPropagation()}>
-            {["Add to Map", "Ask Bridge"].map(a => (
+            {["Add to Overview", "Ask Bridge"].map(a => (
               <button key={a} className="px-1.5 py-0.5 rounded" style={{ fontSize: "0.58rem", fontWeight: 600, background: "rgba(74,82,0,0.12)", color: "var(--accent-strong)" }}>{a}</button>
             ))}
           </motion.div>
@@ -543,7 +543,7 @@ function AudioOutputNode({ pos, selected, isDragging, onClick, onDragStart }: {
         <AnimatePresence>
           {hovered && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.1 }} onClick={e => e.stopPropagation()}>
-              <HoverActions actions={["Regenerate", "Share", "Add to Map"]} onAction={() => {}} />
+              <HoverActions actions={["Regenerate", "Share", "Add to Overview"]} onAction={() => {}} />
             </motion.div>
           )}
         </AnimatePresence>
@@ -708,7 +708,7 @@ function FloatingToolbar({ count, onAction }: { count: number; onAction: (a: str
           { label: "Audio", icon: AudioLines },
           { label: "Video", icon: Film },
           { label: "Doc", icon: FileText },
-          { label: "Add to Map", icon: GitBranch },
+          { label: "Add to Overview", icon: GitBranch },
         ].map(item => (
           <button
             key={item.label}
@@ -762,7 +762,7 @@ function BridgeStudio({
 
   const triggerCreate = () => {
     setCreating(true);
-    setTimeout(() => { setCreating(false); setCreated(true); onAnnotate("New output created — Map updated"); }, 1800);
+    setTimeout(() => { setCreating(false); setCreated(true); onAnnotate("New output created — Overview updated"); }, 1800);
   };
 
   const panelTitle = () => {
@@ -947,7 +947,7 @@ function BridgeStudio({
                         { label: "Create audio from this",    icon: AudioLines, action: () => onPanelState("create-audio") },
                         { label: "Create video from this",    icon: Film,       action: () => onPanelState("create-video") },
                         { label: "Create document from this", icon: FileText,   action: () => onPanelState("create-doc")   },
-                        { label: "Add to Map",                icon: GitBranch,  action: () => onAnnotate("Map updated")    },
+                        { label: "Add to Overview",                icon: GitBranch,  action: () => onAnnotate("Overview updated")    },
                         { label: "Add note",                  icon: StickyNote, action: () => {}                           },
                       ] as { label: string; icon: React.ElementType; action: () => void }[]).map(item => (
                         <button
@@ -965,7 +965,7 @@ function BridgeStudio({
                     <div className="h-px bg-border" />
 
                     <div>
-                      <p style={{ fontSize: "0.7rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--muted-foreground)", marginBottom: 8 }}>Related Map cards</p>
+                      <p style={{ fontSize: "0.7rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--muted-foreground)", marginBottom: 8 }}>Related Overview cards</p>
                       {["Decision gateway creates peak load", "Timeline revised to March 15"].map(t => (
                         <div key={t} className="px-3 py-2 rounded-xl border border-border mb-1.5" style={{ background: "var(--background)", fontSize: "0.775rem", lineHeight: 1.4 }}>{t}</div>
                       ))}
@@ -995,11 +995,11 @@ function BridgeStudio({
                       { label: "Regenerate",   icon: RefreshCw  },
                       { label: "Export",       icon: Download   },
                       { label: "Share",        icon: Share2     },
-                      { label: "Add to Map",   icon: GitBranch  },
+                      { label: "Add to Overview",   icon: GitBranch  },
                     ] as { label: string; icon: React.ElementType }[]).map(item => (
                       <button
                         key={item.label}
-                        onClick={() => { if (item.label === "Add to Map") onAnnotate("Output linked to Map"); }}
+                        onClick={() => { if (item.label === "Add to Overview") onAnnotate("Output linked to Overview"); }}
                         className="flex items-center gap-2 w-full px-3 py-2 rounded-xl border border-border hover:bg-secondary transition-colors"
                         style={{ fontSize: "0.825rem", fontWeight: 500 }}
                       >
@@ -1301,7 +1301,7 @@ export function WorkspaceCanvas({ onAnnotate, liveSources, liveNotes, livePositi
   };
 
   const handleMultiAction = (action: string) => {
-    if (action === "Add to Map") { onAnnotate("Sources added to Map"); return; }
+    if (action === "Add to Overview") { onAnnotate("Sources added to Overview"); return; }
     if (action === "Audio") { setPanelState("create-audio"); setStudioOpen(true); return; }
     if (action === "Video") { setPanelState("create-video"); setStudioOpen(true); return; }
     if (action === "Doc")   { setPanelState("create-doc");   setStudioOpen(true); return; }
@@ -1473,11 +1473,11 @@ export function WorkspaceCanvas({ onAnnotate, liveSources, liveNotes, livePositi
                   ["Add note","Add comment","Ask owner","Open in Canvas"],
                   ["Add to main context","Open original"],
                 ] : ctxMenu.kind === "postit" ? [
-                  ["Make question","Assign question","Create context task","Add to Map"],
+                  ["Make question","Assign question","Create context task","Add to Overview"],
                   ["Ask Bridge","Share with person","Mark private"],
                 ] : [
                   ["Edit prompt","Regenerate","Assign review","Create task"],
-                  ["Share","Add to Map","Add to main context","Export"],
+                  ["Share","Add to Overview","Add to main context","Export"],
                 ]).map((grp, gi) => (
                   <div key={gi} className={gi > 0 ? "border-t border-border" : ""}>
                     {grp.map(item => (

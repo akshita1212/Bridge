@@ -210,6 +210,19 @@
   --space-tint: rgba(219, 230, 76, 0.03);
 }
 
+.space-timeline {
+  --space-accent: #5B3FA0;
+  --space-accent-bright: #7C5CD6;
+  --space-accent-soft: rgba(124, 92, 214, 0.12);
+  --space-tint: rgba(124, 92, 214, 0.035);
+}
+.dark .space-timeline {
+  --space-accent: #B9A4F5;
+  --space-accent-bright: #B9A4F5;
+  --space-accent-soft: rgba(185, 164, 245, 0.14);
+  --space-tint: rgba(185, 164, 245, 0.04);
+}
+
 .space-workspace {
   --space-accent: #1E488F;
   --space-accent-bright: #1E488F;

@@ -509,21 +509,23 @@ export function Home({ theme, onToggleTheme, onNavigate }: Props) {
 
 // ─── New Bridge: name it and bring the team in ───────────────────────────────
 
-const ROLES = ["Owner", "Editor", "Contributor", "Viewer"] as const;
+// A person's role is their job on the project, and the hint is what they own.
+const ROLES = ["Product Manager", "Designer", "Engineer", "Researcher", "Stakeholder"] as const;
 type Role = (typeof ROLES)[number];
 const ROLE_HINT: Record<Role, string> = {
-  Owner: "Runs the Bridge and its people",
-  Editor: "Shapes the Map and the Overview",
-  Contributor: "Adds documents, notes and links",
-  Viewer: "Reads and asks the agent",
+  "Product Manager": "Owns scope, priorities and sign-off",
+  Designer: "Owns the flows and the experience",
+  Engineer: "Builds it and owns delivery",
+  Researcher: "Brings the evidence from users",
+  Stakeholder: "Reviews and approves decisions",
 };
 
 function NewBridgeModal({ onClose, onCreate, busy }: { onClose: () => void; onCreate: (name: string) => void; busy: boolean }) {
   const [name, setName] = useState("");
   const [about, setAbout] = useState("");
-  const [people, setPeople] = useState<{ name: string; role: Role; you?: boolean }[]>([{ name: "Akshat", role: "Owner", you: true }]);
+  const [people, setPeople] = useState<{ name: string; role: Role; you?: boolean }[]>([{ name: "Akshat", role: "Designer", you: true }]);
   const [invite, setInvite] = useState("");
-  const [inviteRole, setInviteRole] = useState<Role>("Contributor");
+  const [inviteRole, setInviteRole] = useState<Role>("Engineer");
 
   const add = () => {
     const n = invite.trim();
@@ -570,7 +572,7 @@ function NewBridgeModal({ onClose, onCreate, busy }: { onClose: () => void; onCr
           </div>
 
           <div>
-            <span style={label}>People and roles</span>
+            <span style={label}>People and their roles</span>
             <div className="flex flex-col gap-1.5" data-testid="people">
               {people.map((p, i) => (
                 <div key={i} className="flex items-center gap-3 px-3 py-2 rounded-xl border border-border" style={{ background: "var(--background)" }}>
@@ -579,8 +581,8 @@ function NewBridgeModal({ onClose, onCreate, busy }: { onClose: () => void; onCr
                     <p className="truncate" style={{ fontSize: "0.84rem", fontWeight: 600 }}>{p.name}{p.you && <span style={{ color: "var(--muted-foreground)", fontWeight: 400 }}> · you</span>}</p>
                     <p style={{ fontSize: "0.7rem", color: "var(--muted-foreground)" }}>{ROLE_HINT[p.role]}</p>
                   </div>
-                  <select value={p.role} disabled={p.you} onChange={(e) => setPeople((all) => all.map((x, j) => (j === i ? { ...x, role: e.target.value as Role } : x)))}
-                    className="px-2.5 py-1 rounded-lg border border-border outline-none" style={{ background: p.role === "Owner" ? "#DBE64C" : "var(--card)", color: p.role === "Owner" ? "#001F3F" : "var(--foreground)", fontSize: "0.74rem", fontWeight: 700 }}>
+                  <select value={p.role} onChange={(e) => setPeople((all) => all.map((x, j) => (j === i ? { ...x, role: e.target.value as Role } : x)))}
+                    className="px-2.5 py-1 rounded-lg border border-border outline-none" style={{ background: p.you ? "#DBE64C" : "var(--card)", color: p.you ? "#001F3F" : "var(--foreground)", fontSize: "0.74rem", fontWeight: 700 }}>
                     {ROLES.map((r) => <option key={r}>{r}</option>)}
                   </select>
                 </div>
@@ -590,7 +592,7 @@ function NewBridgeModal({ onClose, onCreate, busy }: { onClose: () => void; onCr
               <input value={invite} onChange={(e) => setInvite(e.target.value)} onKeyDown={(e) => e.key === "Enter" && add()} placeholder="Name or email"
                 className="flex-1 min-w-0 px-3.5 py-2 rounded-xl border border-border outline-none" style={{ background: "var(--input-background)", fontSize: "0.84rem" }} data-testid="invite" />
               <select value={inviteRole} onChange={(e) => setInviteRole(e.target.value as Role)} className="px-2.5 rounded-xl border border-border outline-none" style={{ background: "var(--card)", fontSize: "0.8rem", fontWeight: 600 }} data-testid="invite-role">
-                {ROLES.filter((r) => r !== "Owner").map((r) => <option key={r}>{r}</option>)}
+                {ROLES.map((r) => <option key={r}>{r}</option>)}
               </select>
               <button onClick={add} className="px-3.5 rounded-xl border border-border hover:bg-secondary transition-colors" style={{ fontSize: "0.8rem", fontWeight: 700 }}>Add</button>
             </div>

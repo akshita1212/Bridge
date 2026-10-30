@@ -207,7 +207,7 @@ export function AskAgentPanel({
         {messages.length === 0 && (
           <div className="flex flex-col gap-1.5">
             <p style={{ fontSize: "0.76rem", color: "var(--muted-foreground)", lineHeight: 1.5, marginBottom: 4 }}>
-              Ask anything about this project. Answers come from all its sources, the Map and notes.
+              Ask anything about this project. Answers come from all its sources, the Overview, the Timeline and notes.
             </p>
             {SUGGESTED.map((s) => (
               <button key={s} onClick={() => send(s)} className="text-left px-3 py-2 rounded-xl border border-border hover:bg-secondary transition-colors flex items-center gap-2" style={{ fontSize: "0.78rem", fontWeight: 500 }}>
