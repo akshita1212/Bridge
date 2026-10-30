@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
-import { motion } from "motion/react";
+import { motion, AnimatePresence } from "motion/react";
 import { api, timeAgo, type ApiBridge } from "../lib/api";
 import {
   Home as HomeIcon, Clock, Users, Folder, Library, FileText, Settings,
   Search, Plus, Sun, Moon, Bell, ChevronDown, Grid3X3, List,
-  MoreHorizontal, GitBranch, Star, Trash2, Share2, Edit3, LogOut
+  MoreHorizontal, GitBranch, Star, Trash2, Share2, Edit3, LogOut, X, Check
 } from "lucide-react";
 import type { Page, Theme } from "../App";
 
@@ -246,11 +246,13 @@ export function Home({ theme, onToggleTheme, onNavigate }: Props) {
       .catch(() => { setBridges(BRIDGES); setApiDown(true); });
   }, []);
 
-  const createBridge = async () => {
+  const [newOpen, setNewOpen] = useState(() => new URLSearchParams(window.location.search).has("create"));
+  const createBridge = () => setNewOpen(true);
+  const confirmCreate = async (name: string) => {
     if (creating) return;
     setCreating(true);
     try {
-      const bridge = await api.createBridge("Untitled Bridge");
+      const bridge = await api.createBridge(name || "Untitled Bridge");
       onNavigate("canvas", bridge.id);
     } catch {
       onNavigate("canvas", "new");
@@ -498,6 +500,112 @@ export function Home({ theme, onToggleTheme, onNavigate }: Props) {
           </section>
         </main>
       </div>
+      <AnimatePresence>
+        {newOpen && <NewBridgeModal onClose={() => setNewOpen(false)} onCreate={confirmCreate} busy={creating} />}
+      </AnimatePresence>
     </div>
+  );
+}
+
+// ─── New Bridge: name it and bring the team in ───────────────────────────────
+
+const ROLES = ["Owner", "Editor", "Contributor", "Viewer"] as const;
+type Role = (typeof ROLES)[number];
+const ROLE_HINT: Record<Role, string> = {
+  Owner: "Runs the Bridge and its people",
+  Editor: "Shapes the Map and the Overview",
+  Contributor: "Adds documents, notes and links",
+  Viewer: "Reads and asks the agent",
+};
+
+function NewBridgeModal({ onClose, onCreate, busy }: { onClose: () => void; onCreate: (name: string) => void; busy: boolean }) {
+  const [name, setName] = useState("");
+  const [about, setAbout] = useState("");
+  const [people, setPeople] = useState<{ name: string; role: Role; you?: boolean }[]>([{ name: "Akshat", role: "Owner", you: true }]);
+  const [invite, setInvite] = useState("");
+  const [inviteRole, setInviteRole] = useState<Role>("Contributor");
+
+  const add = () => {
+    const n = invite.trim();
+    if (!n) return;
+    setPeople((p) => [...p, { name: n, role: inviteRole }]);
+    setInvite("");
+  };
+  const initials = (n: string) => n.split(/[\s@.]+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join("");
+  const label = { fontSize: "0.7rem", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.06em", color: "var(--muted-foreground)", marginBottom: 6, display: "block" };
+
+  return (
+    <>
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-40" style={{ background: "rgba(0,31,63,0.18)", backdropFilter: "blur(3px)" }} onClick={onClose} />
+      <motion.div
+        initial={{ opacity: 0, y: 12, scale: 0.98 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        exit={{ opacity: 0, y: 8, scale: 0.98 }}
+        transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+        className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-lg rounded-2xl border border-border overflow-hidden"
+        style={{ background: "var(--card)", boxShadow: "var(--shadow-xl)" }}
+        data-testid="new-bridge"
+      >
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: "#DBE64C" }}><GitBranch size={15} style={{ color: "#001F3F" }} /></div>
+            <div>
+              <p style={{ fontWeight: 700, fontSize: "1rem" }}>New Bridge</p>
+              <p style={{ fontSize: "0.75rem", color: "var(--muted-foreground)" }}>Name the project and bring your team in</p>
+            </div>
+          </div>
+          <button onClick={onClose} aria-label="Close" className="hover:bg-secondary rounded-lg p-1.5 transition-colors" style={{ color: "var(--muted-foreground)" }}><X size={15} /></button>
+        </div>
+
+        <div className="px-6 py-5 flex flex-col gap-5">
+          <div>
+            <label style={label} htmlFor="nb-name">Project name</label>
+            <input id="nb-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Product Handoff" autoFocus
+              className="w-full px-3.5 py-2.5 rounded-xl border border-border outline-none" style={{ background: "var(--input-background)", fontSize: "0.9rem", fontWeight: 600 }} />
+          </div>
+          <div>
+            <label style={label} htmlFor="nb-about">What is it about?</label>
+            <input id="nb-about" value={about} onChange={(e) => setAbout(e.target.value)} placeholder="One line, so everyone starts on the same page"
+              className="w-full px-3.5 py-2.5 rounded-xl border border-border outline-none" style={{ background: "var(--input-background)", fontSize: "0.85rem" }} />
+          </div>
+
+          <div>
+            <span style={label}>People and roles</span>
+            <div className="flex flex-col gap-1.5" data-testid="people">
+              {people.map((p, i) => (
+                <div key={i} className="flex items-center gap-3 px-3 py-2 rounded-xl border border-border" style={{ background: "var(--background)" }}>
+                  <div className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: AVATAR_COLORS[i % AVATAR_COLORS.length], color: "#fff", fontSize: "0.62rem", fontWeight: 800 }}>{initials(p.name)}</div>
+                  <div className="flex-1 min-w-0">
+                    <p className="truncate" style={{ fontSize: "0.84rem", fontWeight: 600 }}>{p.name}{p.you && <span style={{ color: "var(--muted-foreground)", fontWeight: 400 }}> · you</span>}</p>
+                    <p style={{ fontSize: "0.7rem", color: "var(--muted-foreground)" }}>{ROLE_HINT[p.role]}</p>
+                  </div>
+                  <select value={p.role} disabled={p.you} onChange={(e) => setPeople((all) => all.map((x, j) => (j === i ? { ...x, role: e.target.value as Role } : x)))}
+                    className="px-2.5 py-1 rounded-lg border border-border outline-none" style={{ background: p.role === "Owner" ? "#DBE64C" : "var(--card)", color: p.role === "Owner" ? "#001F3F" : "var(--foreground)", fontSize: "0.74rem", fontWeight: 700 }}>
+                    {ROLES.map((r) => <option key={r}>{r}</option>)}
+                  </select>
+                </div>
+              ))}
+            </div>
+            <div className="flex gap-2 mt-2">
+              <input value={invite} onChange={(e) => setInvite(e.target.value)} onKeyDown={(e) => e.key === "Enter" && add()} placeholder="Name or email"
+                className="flex-1 min-w-0 px-3.5 py-2 rounded-xl border border-border outline-none" style={{ background: "var(--input-background)", fontSize: "0.84rem" }} data-testid="invite" />
+              <select value={inviteRole} onChange={(e) => setInviteRole(e.target.value as Role)} className="px-2.5 rounded-xl border border-border outline-none" style={{ background: "var(--card)", fontSize: "0.8rem", fontWeight: 600 }} data-testid="invite-role">
+                {ROLES.filter((r) => r !== "Owner").map((r) => <option key={r}>{r}</option>)}
+              </select>
+              <button onClick={add} className="px-3.5 rounded-xl border border-border hover:bg-secondary transition-colors" style={{ fontSize: "0.8rem", fontWeight: 700 }}>Add</button>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between px-6 py-4 border-t border-border" style={{ background: "var(--background)" }}>
+          <p style={{ fontSize: "0.75rem", color: "var(--muted-foreground)" }}>{people.length} {people.length === 1 ? "person" : "people"} · everyone sees the same context</p>
+          <button onClick={() => onCreate(name.trim())} disabled={busy}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl transition-opacity hover:opacity-90 disabled:opacity-50"
+            style={{ background: "var(--btn-brand-bg)", color: "var(--btn-brand-fg)", fontSize: "0.85rem", fontWeight: 700 }} data-testid="create-bridge">
+            <Check size={14} />Create Bridge
+          </button>
+        </div>
+      </motion.div>
+    </>
   );
 }

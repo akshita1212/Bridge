@@ -34,7 +34,7 @@ interface Source {
 
 interface InsightCard {
   id: string;
-  type: "main" | "must-know" | "question" | "decision" | "risk" | "action";
+  type: "main" | "must-know" | "question" | "blocker" | "need" | "decision" | "risk" | "action";
   title: string;
   body: string;
   sources: string[];
@@ -150,7 +150,7 @@ const CW_TRACKING = [
   { label: "Context coverage", value: "71%", helper: "5 of 7 Map cards have source evidence", color: "#1E488F" },
   { label: "Review load", value: "1", helper: "Aditi has the next review handoff", color: "#8A9300" },
 ];
-const MAP_TEMPLATES = ["Understanding Map","Project Timeline","Source Map","Decision Map","Work Map","Custom"];
+const MAP_TEMPLATES = ["Overview","Understanding Map","Source Map","Decision Map","Work Map","Custom"];
 
 const MAP_CARDS: InsightCard[] = [
   {
@@ -186,6 +186,22 @@ const MAP_CARDS: InsightCard[] = [
     confidence: "needs-info",
   },
   {
+    id: "blocker1",
+    type: "blocker",
+    title: "Sign-off owner not confirmed",
+    body: "Final approval is stuck until Aditi names who signs off the gateway redesign.",
+    sources: ["aud1"],
+    confidence: "confirmed",
+  },
+  {
+    id: "need1",
+    type: "need",
+    title: "Framework v4 with node D4",
+    body: "Rohan needs the updated framework before the handoff brief can be shared.",
+    sources: ["img1", "pdf1"],
+    confidence: "inferred",
+  },
+  {
     id: "decision1",
     type: "decision",
     title: "Split into 3 sequential micro-decisions",
@@ -217,6 +233,8 @@ const CARD_CONFIG = {
   main: { label: "Main Idea", color: "#001F3F", ink: "var(--ink)", bg: "var(--status-neutral-soft)", icon: Lightbulb },
   "must-know": { label: "Must Know", color: "#00804C", ink: "var(--status-positive)", bg: "var(--status-positive-soft)", icon: Star },
   question: { label: "Open Question", color: "#1E488F", ink: "var(--status-info)", bg: "var(--status-info-soft)", icon: HelpCircle },
+  blocker: { label: "Blocker", color: "#C0392B", ink: "var(--status-danger)", bg: "var(--status-danger-soft)", icon: Flag },
+  need: { label: "Needs", color: "#1E488F", ink: "var(--status-info)", bg: "var(--status-info-soft)", icon: Bookmark },
   decision: { label: "Decision", color: "#5C6B5A", ink: "var(--status-neutral)", bg: "var(--status-neutral-soft)", icon: Target },
   risk: { label: "Risk", color: "#C0392B", ink: "var(--status-danger)", bg: "var(--status-danger-soft)", icon: AlertTriangle },
   action: { label: "Next Action", color: "#DBE64C", ink: "var(--accent-strong)", bg: "var(--status-warn-soft)", icon: ArrowRight, darkText: true },
@@ -1015,9 +1033,11 @@ function MapMode({
   liveTasks,
   liveQuestions,
   onCreateTask,
+  overview,
 }: {
   onCardSelect: (id: string) => void;
   onSourceSelect: (id: string) => void;
+  overview?: React.ReactNode;
   cards?: InsightCard[];
   workCounts?: { tasks: number; questions: number };
   liveTasks?: CwTask[];
@@ -1025,14 +1045,16 @@ function MapMode({
   onCreateTask?: (task: { title: string; assignee: string; status: string; priority: string; visibility: string; linked?: string }) => void;
 }) {
   const [templateOpen, setTemplateOpen] = useState(false);
-  const [activeTemplate, setActiveTemplate] = useState("Understanding Map");
+  const [activeTemplate, setActiveTemplate] = useState(() =>
+    overview && new URLSearchParams(window.location.search).get("view") !== "map" ? "Overview" : "Understanding Map");
+  const showOverview = !!overview && activeTemplate === "Overview";
   const [cardCtx, setCardCtx] = useState<{ x: number; y: number } | null>(null);
 
   const list = cards ?? MAP_CARDS;
   const groups = [
     { label: "Key findings", items: list.filter((c) => c.type === "main" || c.type === "must-know") },
-    { label: "Open questions & decisions", items: list.filter((c) => c.type === "question" || c.type === "decision") },
-    { label: "Risks & next actions", items: list.filter((c) => c.type === "risk" || c.type === "action") },
+    { label: "Questions, blockers & needs", items: list.filter((c) => c.type === "question" || c.type === "blocker" || c.type === "need") },
+    { label: "Decisions, risks & next actions", items: list.filter((c) => c.type === "decision" || c.type === "risk" || c.type === "action") },
   ].filter((g) => g.items.length > 0);
 
   return (
@@ -1041,7 +1063,21 @@ function MapMode({
       <div className="flex-1 overflow-y-auto px-8 py-6">
         <div className="max-w-4xl mx-auto flex flex-col gap-8">
           <div className="flex items-center justify-between">
-            <p style={{ fontSize: "0.7rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--muted-foreground)" }}>Understanding</p>
+            {overview ? (
+              <div className="flex items-center rounded-xl p-1 gap-0.5" style={{ background: "var(--secondary)" }} role="tablist" aria-label="Map views">
+                {[["Overview", "Overview"], ["Understanding Map", "Map"]].map(([id, label]) => {
+                  const on = activeTemplate === id || (id === "Understanding Map" && !showOverview);
+                  return (
+                    <button key={id} role="tab" aria-selected={on} onClick={() => setActiveTemplate(id)} className="px-3.5 py-1.5 rounded-lg transition-all"
+                      style={{ fontSize: "0.78rem", fontWeight: on ? 700 : 500, background: on ? "var(--card)" : "transparent", color: on ? "var(--foreground)" : "var(--muted-foreground)", boxShadow: on ? "var(--shadow-sm)" : "none" }}>
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <p style={{ fontSize: "0.7rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--muted-foreground)" }}>Understanding</p>
+            )}
             <div className="relative">
               <button onClick={() => setTemplateOpen(o => !o)} className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-border hover:bg-secondary transition-colors" style={{ fontSize: "0.72rem", fontWeight: 500, color: "var(--muted-foreground)" }}>
                 <Map size={11} />View: {activeTemplate}
@@ -1064,7 +1100,8 @@ function MapMode({
             </div>
           </div>
 
-          {groups.length === 0 && (
+          {showOverview && overview}
+          {!showOverview && groups.length === 0 && (
             <div className="flex flex-col items-center justify-center gap-3 py-20 text-center">
               <div className="w-11 h-11 rounded-xl flex items-center justify-center" style={{ background: "var(--space-accent-soft)" }}>
                 <Lightbulb size={18} style={{ color: "var(--space-accent)" }} />
@@ -1075,7 +1112,7 @@ function MapMode({
               </p>
             </div>
           )}
-          {groups.map((group) => (
+          {!showOverview && groups.map((group) => (
             <div key={group.label}>
               <p style={{ fontSize: "0.7rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--muted-foreground)", marginBottom: 12 }}>{group.label}</p>
               <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(auto-fill, minmax(280px, 1fr))` }}>
@@ -1106,6 +1143,177 @@ function MapMode({
           </>
         )}
       </AnimatePresence>
+    </div>
+  );
+}
+
+// ─── Overview ────────────────────────────────────────────────────────────────
+// The common context: what the project is, who is in it, how the timeline is
+// moving and which decisions moved it, and what has been added over time.
+
+const OVERVIEW_PEOPLE = [
+  { initials: "AK", name: "Akshat",       role: "Owner",       color: "#001F3F" },
+  { initials: "AR", name: "Aditi Sharma", role: "Editor",      color: "#1E488F" },
+  { initials: "RM", name: "Rohan Mehta",  role: "Contributor", color: "#00804C" },
+  { initials: "JC", name: "Jo Chen",      role: "Contributor", color: "#74C365" },
+];
+
+const MILESTONES = [
+  { label: "Kickoff",            planned: "Jan 14", now: "Jan 14", state: "done" },
+  { label: "Research synthesis", planned: "Feb 10", now: "Feb 10", state: "done" },
+  { label: "Gateway redesign",   planned: "Mar 1",  now: "Mar 15", state: "active" },
+  { label: "Framework v4",       planned: "Mar 8",  now: "Mar 18", state: "next" },
+  { label: "Handoff",            planned: "Mar 20", now: "Mar 29", state: "next" },
+] as const;
+
+const DECISION_IMPACT = [
+  { kind: "decision", date: "Feb 10", title: "Delivery moved two weeks", why: "Dr. Chen confirmed a resourcing delay on the engineering side.", effect: "Gateway redesign  Mar 1 → Mar 15", source: "aud1" },
+  { kind: "decision", date: "Feb 18", title: "Add node D4 to the framework", why: "The flow diagram added D4 after Framework v3 was published.", effect: "Framework v4  Mar 8 → Mar 18", source: "img1" },
+  { kind: "blocker",  date: "Today",  title: "Sign-off owner not confirmed", why: "If it isn't settled by Mar 12, the handoff moves again.", effect: "Handoff at risk", source: null },
+] as const;
+
+const ACTIVITY = [
+  { when: "Jan 14", who: "JC", what: "added", item: "Assessment Framework v3.pdf" },
+  { when: "Feb 3",  who: "JC", what: "added", item: "UX Research Session.mp4" },
+  { when: "Feb 10", who: "AR", what: "added", item: "Stakeholder Interview.mp3" },
+  { when: "Feb 18", who: "RM", what: "updated", item: "Flow Diagram — Final.png" },
+  { when: "Mar 6",  who: "AR", what: "changed", item: "Design Brief — Q1 2025" },
+];
+
+function OverviewMode({ onSourceSelect, sourceCount, live }: { onSourceSelect: (id: string) => void; sourceCount: number; live?: BridgeState | null }) {
+  const sectionLabel = { fontSize: "0.7rem", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: "var(--muted-foreground)" };
+  const done = MILESTONES.filter((m) => m.state === "done").length;
+  const progress = (done - 1 + 0.45) / (MILESTONES.length - 1);
+  const personColor = (i: string) => OVERVIEW_PEOPLE.find((p) => p.initials === i)?.color ?? "var(--ink)";
+
+  if (live) {
+    return (
+      <div className="flex flex-col gap-6" data-testid="overview">
+        <div className="rounded-2xl border border-border p-6" style={{ background: "var(--card)" }}>
+          <p style={sectionLabel}>Common context · {live.sources.length} sources</p>
+          <p style={{ fontSize: "1.1rem", fontWeight: 700, marginTop: 10, lineHeight: 1.4 }}>{live.bridge.subtitle || live.bridge.title}</p>
+        </div>
+        <div>
+          <p style={{ ...sectionLabel, marginBottom: 12 }}>Activity</p>
+          <div className="flex flex-col gap-1.5">
+            {live.activity.slice(0, 8).map((a) => (
+              <div key={a.id} className="flex items-center gap-3 px-3 py-2 rounded-xl" style={{ background: "var(--card)", fontSize: "0.82rem" }}>
+                <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.68rem", color: "var(--muted-foreground)", width: 70 }}>{timeAgo(a.created_at)}</span>
+                <span style={{ fontWeight: 600 }}>{a.event}</span>
+                <span className="truncate" style={{ color: "var(--muted-foreground)" }}>{a.detail}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-8" data-testid="overview">
+      {/* Common context */}
+      <div className="rounded-2xl border p-6 flex flex-col gap-4" style={{ background: "var(--card)", borderColor: "var(--border)", boxShadow: "0 1px 4px rgba(0,31,63,0.05)" }} data-testid="common-context">
+        <div className="flex items-center gap-2">
+          <span className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ background: "#DBE64C" }}><Lightbulb size={12} style={{ color: "#001F3F" }} /></span>
+          <p style={sectionLabel}>Common context · built from {sourceCount} sources</p>
+        </div>
+        <p style={{ fontSize: "1.3rem", fontWeight: 800, lineHeight: 1.3, letterSpacing: "-0.02em" }} data-testid="context-headline">
+          Redesign the decision gateway so fewer people drop off, and hand it over by March 29.
+        </p>
+        <p style={{ fontSize: "0.9rem", lineHeight: 1.65, color: "var(--muted-foreground)", maxWidth: 720 }} data-testid="context-body">
+          Research shows the gateway is where people get overloaded: 34% drop off there. The team chose to split it into three small decisions.
+          Delivery moved two weeks after the stakeholder interview, and node D4 still has to be added to the framework.
+        </p>
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-3 pt-4 border-t border-border">
+          {[[String(sourceCount), "Sources"], ["4", "People"], ["2", "Decisions"], ["1", "Blocker"]].map(([n, l]) => (
+            <div key={l} className="flex items-baseline gap-1.5"><span style={{ fontSize: "1.15rem", fontWeight: 800 }}>{n}</span><span style={{ fontSize: "0.78rem", color: "var(--muted-foreground)" }}>{l}</span></div>
+          ))}
+          <div className="flex items-center gap-1.5 ml-auto" data-testid="people-row">
+            {OVERVIEW_PEOPLE.map((p) => (
+              <div key={p.initials} className="flex items-center gap-1.5 pl-1 pr-2.5 py-1 rounded-full border border-border" style={{ background: "var(--background)" }}>
+                <span className="w-5 h-5 rounded-full flex items-center justify-center" style={{ background: p.color, color: "#fff", fontSize: "0.5rem", fontWeight: 800 }}>{p.initials}</span>
+                <span style={{ fontSize: "0.7rem", fontWeight: 600 }}>{p.name.split(" ")[0]}</span>
+                <span style={{ fontSize: "0.62rem", color: "var(--muted-foreground)" }}>{p.role}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Timeline */}
+      <div data-testid="timeline">
+        <div className="flex items-center justify-between mb-3">
+          <p style={sectionLabel}>Timeline</p>
+          <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full" style={{ background: "var(--status-warn-soft)", color: "var(--accent-strong)", fontSize: "0.7rem", fontWeight: 700 }}>
+            <Clock size={11} />Handoff moved 9 days by 2 decisions
+          </span>
+        </div>
+        <div className="rounded-2xl border border-border px-6 pt-6 pb-5" style={{ background: "var(--card)" }}>
+          <div className="relative" style={{ height: 6, borderRadius: 3, background: "var(--secondary)", margin: "0 7%" }}>
+            <div data-testid="timeline-fill" style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: `${progress * 100}%`, borderRadius: 3, background: "var(--status-positive)" }} />
+          </div>
+          <div className="grid mt-[-13px]" style={{ gridTemplateColumns: `repeat(${MILESTONES.length}, 1fr)` }}>
+            {MILESTONES.map((m) => {
+              const moved = m.planned !== m.now;
+              return (
+                <div key={m.label} className="flex flex-col items-center text-center gap-1.5" data-testid="milestone">
+                  <span className="w-5 h-5 rounded-full flex items-center justify-center" style={{
+                    background: m.state === "done" ? "var(--status-positive)" : m.state === "active" ? "#DBE64C" : "var(--card)",
+                    border: m.state === "next" ? "2px solid var(--border)" : "2px solid var(--card)", boxShadow: "0 0 0 1px var(--border)" }}>
+                    {m.state === "done" && <Check size={10} style={{ color: "#fff" }} />}
+                  </span>
+                  <p style={{ fontSize: "0.8rem", fontWeight: 700, marginTop: 4 }}>{m.label}</p>
+                  <p style={{ fontSize: "0.74rem", fontFamily: "var(--font-mono)" }}>
+                    {moved && <span data-testid="planned" style={{ textDecoration: "line-through", color: "var(--muted-foreground)", marginRight: 6 }}>{m.planned}</span>}
+                    <span data-testid="now" style={{ fontWeight: 700, color: moved ? "var(--status-danger)" : "var(--foreground)" }}>{m.now}</span>
+                  </p>
+                  {moved && <span data-testid="moved-tag" style={{ fontSize: "0.6rem", fontWeight: 700, padding: "2px 7px", borderRadius: 99, background: "var(--status-danger-soft)", color: "var(--status-danger)" }}>Moved by a decision</span>}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* Decision impact */}
+      <div data-testid="impact">
+        <p style={{ ...sectionLabel, marginBottom: 4 }}>Decision impact</p>
+        <p style={{ fontSize: "0.8rem", color: "var(--muted-foreground)", marginBottom: 12 }}>What changed the timeline, and why.</p>
+        <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))" }}>
+          {DECISION_IMPACT.map((d) => {
+            const cfg = CARD_CONFIG[d.kind];
+            const Icon = cfg.icon;
+            return (
+              <div key={d.title} className="rounded-2xl border p-4 flex flex-col gap-2" style={{ background: cfg.bg, borderColor: cfg.color + "22" }} data-testid="impact-card">
+                <div className="flex items-center justify-between">
+                  <span className="flex items-center gap-1.5" style={{ fontSize: "0.67rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: cfg.ink }}><Icon size={12} />{cfg.label}</span>
+                  <span style={{ fontSize: "0.68rem", fontFamily: "var(--font-mono)", color: "var(--muted-foreground)" }}>{d.date}</span>
+                </div>
+                <p style={{ fontWeight: 700, fontSize: "0.88rem", lineHeight: 1.35 }}>{d.title}</p>
+                <p style={{ fontSize: "0.78rem", lineHeight: 1.5, color: "var(--muted-foreground)" }}>{d.why}</p>
+                <div className="flex items-center gap-2 flex-wrap mt-1">
+                  <span className="flex items-center gap-1 px-2 py-1 rounded-lg" style={{ background: "var(--card)", fontSize: "0.7rem", fontWeight: 700, fontFamily: "var(--font-mono)", whiteSpace: "pre" }}><Clock size={10} />{d.effect}</span>
+                  {d.source && <SourceChip sourceId={d.source} onSelect={onSourceSelect} />}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Activity */}
+      <div data-testid="activity">
+        <p style={{ ...sectionLabel, marginBottom: 12 }}>Activity</p>
+        <div className="flex flex-col gap-1.5">
+          {ACTIVITY.map((a) => (
+            <div key={a.item} className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl border border-border" style={{ background: "var(--card)" }}>
+              <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.7rem", color: "var(--muted-foreground)", width: 52 }}>{a.when}</span>
+              <span className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: personColor(a.who), color: "#fff", fontSize: "0.55rem", fontWeight: 800 }}>{a.who}</span>
+              <span style={{ fontSize: "0.82rem" }}><b style={{ fontWeight: 700 }}>{OVERVIEW_PEOPLE.find((p) => p.initials === a.who)?.name}</b> {a.what} <span style={{ fontWeight: 600 }}>{a.item}</span></span>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
@@ -3376,7 +3584,7 @@ export function Canvas({ theme, onToggleTheme, onNavigate, canvasId }: Props) {
           ) : (
             <>
               {mode === "map" && (
-                <MapMode onCardSelect={handleCardSelect} onSourceSelect={handleSourceSelect} cards={isLive ? (liveCards ?? []) as InsightCard[] : undefined} workCounts={isLive ? { tasks: live.tasks.filter(t => t.status !== "Done").length, questions: live.questions.filter(q => q.status === "Open").length } : undefined} liveTasks={isLive ? live.tasks.map(mapApiTask) : undefined} liveQuestions={isLive ? live.questions.map(mapApiQuestion) : undefined} onCreateTask={isLive ? liveCreateTask : undefined} />
+                <MapMode onCardSelect={handleCardSelect} onSourceSelect={handleSourceSelect} overview={<OverviewMode onSourceSelect={handleSourceSelect} sourceCount={isLive ? live.sources.length : CONNECTED_SOURCES.length} live={isLive ? live : null} />} cards={isLive ? (liveCards ?? []) as InsightCard[] : undefined} workCounts={isLive ? { tasks: live.tasks.filter(t => t.status !== "Done").length, questions: live.questions.filter(q => q.status === "Open").length } : undefined} liveTasks={isLive ? live.tasks.map(mapApiTask) : undefined} liveQuestions={isLive ? live.questions.map(mapApiQuestion) : undefined} onCreateTask={isLive ? liveCreateTask : undefined} />
               )}
               {mode === "workspace" && (
                 <div className="flex-1 flex flex-col overflow-hidden">

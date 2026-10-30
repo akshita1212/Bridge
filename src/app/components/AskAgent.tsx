@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { X, CornerDownRight, FileText, Video, AudioLines, Image, Globe, StickyNote } from "lucide-react";
+import { X, CornerDownRight, FileText, Video, AudioLines, Image, Globe, StickyNote, Play, Download } from "lucide-react";
 import { api } from "../lib/api";
 
 // ─── Ask the agent ───────────────────────────────────────────────────────────
@@ -28,9 +28,12 @@ export interface AgentKnowledge {
 
 type Message =
   | { role: "user"; text: string }
-  | { role: "agent"; headline: string; body: string; sources: AgentSource[]; followUps?: string[] };
+  | { role: "agent"; headline: string; body: string; sources: AgentSource[]; followUps?: string[]; output?: AgentOutput };
 
-const SUGGESTED = ["What changed in the latest brief?", "Summarize this whole Bridge", "What's still unanswered?", "Make a 2-minute audio summary"];
+/** A file the agent made on request: an audio summary or a video explainer. */
+type AgentOutput = { kind: "audio" | "video"; title: string; length: string };
+
+const SUGGESTED = ["What changed in the latest brief?", "Summarize this whole Bridge", "What's blocking us?", "Make a 2-minute audio summary"];
 
 const TYPE_CHIP: Record<SourceType, { label: string; icon: React.ElementType }> = {
   pdf: { label: "PDF", icon: FileText },
@@ -70,14 +73,21 @@ function answerFromContent(q: string, knowledge: AgentKnowledge[]): Message {
     const picks = [...byKind("main"), ...byKind("must-know")];
     return reply(`${main?.title ?? "Here's the short version"}.`, `${main?.body ?? ""} Also: ${byKind("must-know").map((p) => p.title.toLowerCase()).join("; ")}.`, picks, ["What's still unanswered?", "Make a 2-minute audio summary"]);
   }
-  if (/audio|podcast|video|explainer|slides|output/.test(ql)) {
-    const kind = /video/.test(ql) ? "video explainer" : /slides/.test(ql) ? "slide outline" : "2-minute audio summary";
+  if (/audio|podcast|listen|video|explainer|watch/.test(ql)) {
+    const video = /video|watch/.test(ql);
     const picks = [...byKind("main"), ...byKind("must-know"), ...byKind("decision")];
-    return reply(`Making a ${kind}.`, `It covers ${picks.length} findings from ${uniqSources(picks).length} sources and opens in your Workspace when it's ready.`, picks, ["Make it a video instead"]);
+    return {
+      ...reply(video ? "Here's a short video explainer." : "Here's a 2-minute audio summary.", `It walks through ${picks.length} findings from ${uniqSources(picks).length} sources, in plain words.`, picks, video ? ["Make an audio version"] : ["Make it a video instead"]),
+      output: video ? { kind: "video", title: "Product Handoff, explained", length: "1:48" } : { kind: "audio", title: "Product Handoff in 2 minutes", length: "2:04" },
+    } as Message;
   }
   if (/chang|latest|brief|update/.test(ql)) {
     const picks = byKind("must-know").slice(0, 1);
     return reply(`${picks[0]?.title ?? "Nothing has changed"}.`, "The latest brief still references the old milestone date, so the PDF and the framework should be aligned before handoff.", picks, ["Who owns sign-off?", "What should we do next?"]);
+  }
+  if (/block|stuck|waiting/.test(ql)) {
+    const picks = [...byKind("blocker"), ...byKind("need")];
+    return reply(`${picks[0]?.title ?? "Nothing is blocking you"}.`, picks.map((p) => p.body).join(" "), picks, ["Who owns sign-off?", "Make a 2-minute audio summary"]);
   }
   if (/unanswer|open|gap|missing|unknown|who|owner|sign/.test(ql)) {
     const picks = byKind("question");
@@ -223,6 +233,7 @@ export function AskAgentPanel({
               </div>
               <p style={{ fontSize: "0.86rem", fontWeight: 700, lineHeight: 1.35 }}>{m.headline}</p>
               {m.body && <p style={{ fontSize: "0.74rem", color: "var(--muted-foreground)", lineHeight: 1.5, marginTop: 4 }}>{m.body}</p>}
+              {m.output && <OutputCard output={m.output} />}
               {m.sources.length > 0 && (
                 <div className="flex flex-wrap gap-1.5 mt-2.5">
                   {m.sources.map((s) => {
@@ -280,5 +291,37 @@ export function AskAgentPanel({
         </button>
       </div>
     </motion.div>
+  );
+}
+
+const WAVE = [5, 9, 14, 8, 17, 11, 6, 13, 18, 10, 7, 15, 12, 6, 16, 9, 13, 7, 11, 15, 8, 12, 6, 10];
+
+function OutputCard({ output }: { output: AgentOutput }) {
+  if (output.kind === "video") {
+    return (
+      <div className="mt-2.5 rounded-xl overflow-hidden border border-border" style={{ background: "var(--card)" }} data-testid="agent-output">
+        <div className="relative flex items-center justify-center" style={{ aspectRatio: "16 / 8", background: "linear-gradient(135deg, #001F3F, #1E488F)" }}>
+          <div className="absolute left-3 top-3 flex items-center gap-1.5" style={{ color: "#DBE64C", fontSize: "0.62rem", fontWeight: 800, letterSpacing: "0.06em", textTransform: "uppercase" }}><Video size={11} />Video</div>
+          <div className="w-11 h-11 rounded-full flex items-center justify-center" style={{ background: "#DBE64C", color: "#001F3F" }}><Play size={17} style={{ marginLeft: 2 }} /></div>
+          <span className="absolute right-3 bottom-2.5" style={{ color: "#F6F7ED", fontSize: "0.68rem", fontFamily: "var(--font-mono)" }}>{output.length}</span>
+        </div>
+        <div className="flex items-center justify-between px-3 py-2">
+          <p style={{ fontSize: "0.76rem", fontWeight: 700 }}>{output.title}</p>
+          <Download size={13} style={{ color: "var(--muted-foreground)" }} />
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div className="mt-2.5 rounded-xl border border-border px-3 py-2.5 flex items-center gap-3" style={{ background: "var(--card)" }} data-testid="agent-output">
+      <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: "#DBE64C", color: "#001F3F" }}><Play size={14} style={{ marginLeft: 2 }} /></div>
+      <div className="flex-1 min-w-0">
+        <p className="truncate" style={{ fontSize: "0.76rem", fontWeight: 700 }}>{output.title}</p>
+        <div className="flex items-center gap-[2px] mt-1.5" style={{ height: 18 }}>
+          {WAVE.map((h, i) => <span key={i} style={{ width: 3, height: h, borderRadius: 2, background: i < 7 ? "var(--status-positive)" : "var(--border)" }} />)}
+        </div>
+      </div>
+      <span style={{ fontSize: "0.68rem", fontFamily: "var(--font-mono)", color: "var(--muted-foreground)" }}>{output.length}</span>
+    </div>
   );
 }
