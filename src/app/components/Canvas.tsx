@@ -20,7 +20,7 @@ interface Props {
   canvasId: string;
 }
 
-type WorkspaceMode = "map" | "timeline" | "workspace" | "work";
+type WorkspaceMode = "map" | "workspace" | "work";
 
 interface Source {
   id: string;
@@ -1034,10 +1034,12 @@ function MapMode({
   liveQuestions,
   onCreateTask,
   summary,
+  timeline,
 }: {
   onCardSelect: (id: string) => void;
   onSourceSelect: (id: string) => void;
   summary?: React.ReactNode;
+  timeline?: React.ReactNode;
   cards?: InsightCard[];
   workCounts?: { tasks: number; questions: number };
   liveTasks?: CwTask[];
@@ -1108,6 +1110,7 @@ function MapMode({
               </div>
             </div>
           ))}
+          {timeline}
         </div>
       </div>
 
@@ -1194,7 +1197,7 @@ function ProjectSummary({ sourceCount, live, onOpenTimeline }: { sourceCount: nu
           <div key={l} className="flex items-baseline gap-1.5"><span style={{ fontSize: "1.15rem", fontWeight: 700 }}>{n}</span><span style={{ fontSize: "0.78rem", color: "var(--muted-foreground)" }}>{l}</span></div>
         ))}
         <button onClick={onOpenTimeline} className="flex items-center gap-1.5 px-2.5 py-1 rounded-full ml-auto hover:opacity-90" style={{ background: "var(--status-warn-soft)", color: "var(--accent-strong)", fontSize: "0.72rem", fontWeight: 700 }} data-testid="timeline-chip">
-          <Clock size={11} />Handoff moved 9 days · see Timeline
+          <Clock size={11} />Handoff moved 9 days · see Timeline below
         </button>
       </div>
       <div className="flex flex-wrap items-center gap-2" data-testid="people-row">
@@ -1210,14 +1213,19 @@ function ProjectSummary({ sourceCount, live, onOpenTimeline }: { sourceCount: nu
   );
 }
 
-function TimelineView({ onSourceSelect, live }: { onSourceSelect: (id: string) => void; live?: BridgeState | null }) {
+function TimelineSection({ onSourceSelect, live }: { onSourceSelect: (id: string) => void; live?: BridgeState | null }) {
   const done = MILESTONES.filter((m) => m.state === "done").length;
   const progress = (done - 1 + 0.45) / (MILESTONES.length - 1);
   const personColor = (i: string) => PROJECT_PEOPLE.find((p) => p.initials === i)?.color ?? "var(--ink)";
 
   return (
-    <div className="flex-1 overflow-y-auto px-8 py-6" data-testid="timeline-scroll">
-      <div className="max-w-4xl mx-auto flex flex-col gap-8" data-testid="timeline-view">
+    <section className="flex flex-col gap-6 pt-6 border-t border-border" data-testid="timeline-section">
+      <div className="flex items-center gap-2">
+        <Clock size={14} style={{ color: "var(--space-accent)" }} />
+        <p style={{ fontSize: "0.95rem", fontWeight: 700 }}>Timeline</p>
+        <span style={{ fontSize: "0.78rem", color: "var(--muted-foreground)" }}>How the plan is moving, and which decisions moved it</span>
+      </div>
+      <div className="flex flex-col gap-8" data-testid="timeline-view">
         {live ? (
           <div>
             <p style={{ ...sectionLabel, marginBottom: 12 }}>Activity</p>
@@ -1313,7 +1321,7 @@ function TimelineView({ onSourceSelect, live }: { onSourceSelect: (id: string) =
           </>
         )}
       </div>
-    </div>
+    </section>
   );
 }
 
@@ -2590,14 +2598,12 @@ function ContextWorkMode({ liveTasks, liveQuestions, onCreateTask }: { liveTasks
 
 const MODE_ITEMS = [
   { id: "map"       as WorkspaceMode, icon: Map,      label: "Overview",  hint: "Shared understanding" },
-  { id: "timeline"  as WorkspaceMode, icon: Clock,    label: "Timeline",  hint: "Dates & decisions" },
   { id: "workspace" as WorkspaceMode, icon: BookOpen, label: "Workspace", hint: "Private canvas" },
   { id: "work"      as WorkspaceMode, icon: Target,   label: "Work",      hint: "Tasks & changes" },
 ];
 
 const SPACE_CLASS: Record<WorkspaceMode, string> = {
   map: "space-map",
-  timeline: "space-timeline",
   workspace: "space-workspace",
   work: "space-work",
 };
@@ -2624,12 +2630,6 @@ const INPUT_ACTIONS_BY_MODE: Record<WorkspaceMode, { id: BottomActionId; icon: R
     { id: "analyze", icon: Zap,       label: "Analyze" },
     { id: "refresh", icon: RefreshCw, label: "Refresh" },
     { id: "more",    icon: Plus,      label: "More" },
-  ],
-  timeline: [
-    { id: "upload",    icon: Upload, label: "Upload" },
-    { id: "decision",  icon: Target, label: "Log decision" },
-    { id: "milestone", icon: Flag,   label: "Add milestone" },
-    { id: "more",      icon: Plus,   label: "More" },
   ],
   workspace: [
     { id: "upload", icon: Upload,     label: "Upload" },
@@ -2938,11 +2938,8 @@ function MoreMenu({ mode, onClose, onSelect }: { mode: WorkspaceMode; onClose: (
     map: [
       [{ icon: Upload, label: "Upload source" }, { icon: Globe, label: "Connect live source" }, { icon: Link2, label: "Paste source link" }],
       [{ icon: Zap, label: "Analyze all sources" }, { icon: RefreshCw, label: "Refresh Understanding" }, { icon: GitBranch, label: "View source coverage" }],
-      [{ icon: BookOpen, label: "Open evidence drawer" }, { icon: Share2, label: "Share understanding" }],
-    ],
-    timeline: [
       [{ icon: Target, label: "Log decision" }, { icon: Flag, label: "Add milestone" }],
-      [{ icon: Zap, label: "Analyze timeline changes" }, { icon: Share2, label: "Share timeline" }],
+      [{ icon: BookOpen, label: "Open evidence drawer" }, { icon: Share2, label: "Share understanding" }],
     ],
     workspace: [
       [{ icon: Globe, label: "Connect Google Drive" }, { icon: FileText, label: "Connect Microsoft file" }, { icon: Image, label: "Connect Figma file" }],
@@ -2963,7 +2960,7 @@ function MoreMenu({ mode, onClose, onSelect }: { mode: WorkspaceMode; onClose: (
       <motion.div initial={{ opacity: 0, y: 8, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 6 }} transition={{ duration: 0.15, ease: [0.16,1,0.3,1] }} className="fixed bottom-28 left-1/2 -translate-x-1/2 z-50 w-64 rounded-2xl border border-border overflow-hidden" style={{ background: "var(--card)", boxShadow: "var(--shadow-lg)" }}>
         <div className="px-4 py-2.5 border-b border-border">
           <p style={{ fontSize: "0.72rem", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--muted-foreground)" }}>
-            {mode === "map" ? "Overview actions" : mode === "timeline" ? "Timeline actions" : mode === "workspace" ? "Canvas actions" : "Action Hub actions"}
+            {mode === "map" ? "Overview actions" : mode === "workspace" ? "Canvas actions" : "Action Hub actions"}
           </p>
         </div>
         <div className="py-1">
@@ -3103,7 +3100,7 @@ function LiveSourceViewer({ source, onClose, onAnalyze, onDelete }: {
 export function Canvas({ theme, onToggleTheme, onNavigate, canvasId }: Props) {
   const [mode, setMode] = useState<WorkspaceMode>(() => {
     const fromUrl = new URLSearchParams(window.location.search).get("mode");
-    return fromUrl === "workspace" || fromUrl === "work" || fromUrl === "timeline" ? fromUrl : "map";
+    return fromUrl === "workspace" || fromUrl === "work" ? fromUrl : "map";
   });
   const [leftOpen, setLeftOpen] = useState(true);
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
@@ -3617,12 +3614,7 @@ export function Canvas({ theme, onToggleTheme, onNavigate, canvasId }: Props) {
           ) : (
             <>
               {mode === "map" && (
-                <MapMode onCardSelect={handleCardSelect} onSourceSelect={handleSourceSelect} summary={<ProjectSummary sourceCount={isLive ? live.sources.length : CONNECTED_SOURCES.length} live={isLive ? live : null} onOpenTimeline={() => { setMode("timeline"); handlePanelClose(); }} />} cards={isLive ? (liveCards ?? []) as InsightCard[] : undefined} workCounts={isLive ? { tasks: live.tasks.filter(t => t.status !== "Done").length, questions: live.questions.filter(q => q.status === "Open").length } : undefined} liveTasks={isLive ? live.tasks.map(mapApiTask) : undefined} liveQuestions={isLive ? live.questions.map(mapApiQuestion) : undefined} onCreateTask={isLive ? liveCreateTask : undefined} />
-              )}
-              {mode === "timeline" && (
-                <div className="flex-1 flex flex-col overflow-hidden">
-                  <TimelineView onSourceSelect={handleSourceSelect} live={isLive ? live : null} />
-                </div>
+                <MapMode onCardSelect={handleCardSelect} onSourceSelect={handleSourceSelect} summary={<ProjectSummary sourceCount={isLive ? live.sources.length : CONNECTED_SOURCES.length} live={isLive ? live : null} onOpenTimeline={() => document.querySelector("[data-testid=timeline-section]")?.scrollIntoView({ behavior: "smooth", block: "start" })} />} timeline={<TimelineSection onSourceSelect={handleSourceSelect} live={isLive ? live : null} />} cards={isLive ? (liveCards ?? []) as InsightCard[] : undefined} workCounts={isLive ? { tasks: live.tasks.filter(t => t.status !== "Done").length, questions: live.questions.filter(q => q.status === "Open").length } : undefined} liveTasks={isLive ? live.tasks.map(mapApiTask) : undefined} liveQuestions={isLive ? live.questions.map(mapApiQuestion) : undefined} onCreateTask={isLive ? liveCreateTask : undefined} />
               )}
               {mode === "workspace" && (
                 <div className="flex-1 flex flex-col overflow-hidden">
