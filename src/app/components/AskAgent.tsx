@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { X, CornerDownRight, FileText, Video, AudioLines, Image, Globe, StickyNote, Play, Download } from "lucide-react";
+import { X, CornerDownRight, FileText, Video, AudioLines, Image, Globe, StickyNote, Play, Download, Mic } from "lucide-react";
 import { api } from "../lib/api";
 
 // ─── Ask the agent ───────────────────────────────────────────────────────────
@@ -283,10 +283,21 @@ export function AskAgentPanel({
           style={{ fontSize: "0.8rem", background: "var(--input-background)" }}
         />
         <button
+          aria-label="Talk to the agent"
+          title="Talk to the agent"
+          className="w-9 rounded-xl border border-border flex items-center justify-center flex-shrink-0 hover:bg-secondary transition-colors"
+          style={{ color: "var(--foreground)" }}
+        >
+          <Mic size={15} />
+        </button>
+        <button
           onClick={() => send()}
           disabled={busy || !input.trim()}
-          className="px-4 rounded-xl transition-opacity hover:opacity-90 disabled:opacity-50"
-          style={{ background: "#DBE64C", color: "#001F3F", fontSize: "0.8rem", fontWeight: 700 }}
+          aria-label="Send"
+          className="px-4 rounded-xl transition-colors hover:opacity-90"
+          style={input.trim() && !busy
+            ? { background: "#DBE64C", color: "#001F3F", fontSize: "0.8rem", fontWeight: 700 }
+            : { background: "var(--secondary)", color: "var(--muted-foreground)", fontSize: "0.8rem", fontWeight: 700, cursor: "default" }}
         >
           Send
         </button>
